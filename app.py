@@ -161,7 +161,7 @@ with st.form("di_form_completo"):
         des_nombre = st.text_input("Razón Social Destino:", value="Planta Reciclaje Destino S.L.")
         des_nima = st.text_input("NIMA Destino:", value="555443322")
     with c2:
-        des_inscripcion = st.text_input("Nº Inscripción Destino:", value="DES-003")
+        des_inscripcion = st.text_input("Nº Inscripción Destino:", value="")
         des_tipo = st.selectbox("Tipo Destino:", ["G04", "G05"])
         des_direccion = st.text_input("Dirección Destino:", value="Carretera Nacional Km 5")
     with c3:
