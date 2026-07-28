@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime
+import io
 import os
 import qrcode
 import streamlit as st
@@ -21,7 +22,7 @@ EXCEL_PATH = "registro_documentos.xlsx"
 with st.sidebar:
     st.header("📊 Gestión de Registros")
     st.write("Descarga la base de datos completa de documentos generados:")
-    
+
     if os.path.exists(EXCEL_PATH):
         with open(EXCEL_PATH, "rb") as f_excel:
             st.download_button(
@@ -29,7 +30,8 @@ with st.sidebar:
                 data=f_excel,
                 file_name="registro_documentos.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
+                use_container_width=True,
+                key="btn_excel_sidebar"
             )
     else:
         st.info("ℹ️ Aún no hay registros guardados. Genera el primer documento para crear el Excel.")
@@ -44,7 +46,7 @@ def generar_numero_di(nima_operador: str) -> str:
     ahora = datetime.now()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
-    anio = me = ahora.strftime("%Y")
+    anio = ahora.strftime("%Y")
     contador_7 = ahora.strftime("%m%d%H") + ahora.strftime("%M")[0]
     return f"{nima_10}{anio}{contador_7}"
 
@@ -69,6 +71,7 @@ if "doc" in st.query_params:
             data=pdf_bytes,
             file_name=pdf_filename,
             mime="application/pdf",
+            key="btn_visor_pdf"
         )
 
         st.markdown("---")
@@ -345,11 +348,13 @@ if btn_generar:
         if motivo_rechazo:
             pdf.cell(190, 5, s(f"Motivo de rechazo: {motivo_rechazo}"), border=1, ln=True)
 
-        pdf_out_path = f"DI_{di_num.replace('/', '_')}.pdf"
-        pdf.output(pdf_out_path)
-
-        with open(pdf_out_path, "rb") as f:
-            pdf_bytes = f.read()
+        pdf_out_filename = f"DI_{di_num.replace('/', '_')}.pdf"
+        
+        # Guardado en disco
+        pdf.output(pdf_out_filename)
+        
+        # Obtención de bytes directos para descarga segura
+        pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
         # 3. Guardar en Excel con TODOS los datos
         columnas_excel = [
@@ -407,8 +412,9 @@ if btn_generar:
                 st.download_button(
                     label="📄 Descargar PDF Oficial",
                     data=pdf_bytes,
-                    file_name=f"DI_{di_num}.pdf",
+                    file_name=pdf_out_filename,
                     mime="application/pdf",
+                    key="btn_pdf_main"
                 )
             with col_btn2:
                 with open(EXCEL_PATH, "rb") as f_excel:
@@ -417,7 +423,6 @@ if btn_generar:
                         data=f_excel,
                         file_name="registro_documentos.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="btn_excel_main"
                     )
             st.code(f"URL del QR: {enlace_qr}", language="text")
-            
-        st.rerun()  # Recarga rápida para actualizar el botón de la barra lateral
