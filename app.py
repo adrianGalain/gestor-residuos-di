@@ -18,109 +18,11 @@ st.set_page_config(
 EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 
-# URL Base enmascarada/oculta en el servidor (No visible ni editable en la interfaz del usuario)
+# URL Base oculta en el servidor para generar los QR de verificación
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
 def obtener_ahora_espana():
     return datetime.now(SPAIN_TZ)
-
-# Base de Datos Interna / Registro de Transportistas para extracción y verificación
-BASE_DATOS_TRANSPORTISTAS = [
-    {
-        "nif": "B11223344",
-        "nombre": "Transportes Rápidos S.L.",
-        "nima": "112233445",
-        "inscripcion": "TRA-004-AND",
-        "tipo": "Transportista Profesional",
-        "direccion": "Av. Logística 8, Málaga",
-        "conductor": "Juan Pérez",
-        "matricula": "1234-XYZ / Camión",
-        "telefono": "600112233",
-        "email": "trans@rapidos.com"
-    },
-    {
-        "nif": "A98765432",
-        "nombre": "Logística Ecológica Andaluza S.A.",
-        "nima": "2900012345",
-        "inscripcion": "TRA-015-AND",
-        "tipo": "Gestor y Transportista",
-        "direccion": "Pol. Ind. Guadalhorce, Málaga",
-        "conductor": "Manuel Gómez",
-        "matricula": "5678-ABC / Furgón",
-        "telefono": "611223344",
-        "email": "contacto@logisticaeco.es"
-    }
-]
-
-# Inicializar Session State para autocompletar el formulario del transportista
-if "trans_data" not in st.session_state:
-    st.session_state["trans_data"] = {
-        "nif": "B11223344",
-        "nombre": "Transportes Rápidos S.L.",
-        "nima": "112233445",
-        "inscripcion": "TRA-004-AND",
-        "tipo": "Transportista Profesional",
-        "direccion": "Av. Logística 8",
-        "conductor": "Juan Pérez",
-        "matricula": "1234-XYZ / Camión",
-        "telefono": "600112233",
-        "email": "trans@rapidos.com"
-    }
-
-def cargar_habitual():
-    """Carga los datos predeterminados en el session state"""
-    st.session_state["trans_data"] = BASE_DATOS_TRANSPORTISTAS[0]
-    st.success("⚡ Datos del Transportista Habitual cargados correctamente.")
-
-def verificar_y_extraer_transportista(query):
-    """Lógica backend para verificar por CIF o Nombre y extraer los datos"""
-    query_clean = query.strip().lower()
-    if not query_clean:
-        st.warning("⚠️ Introduce un CIF o Nombre para verificar.")
-        return
-
-    encontrado = None
-    for t in BASE_DATOS_TRANSPORTISTAS:
-        if query_clean in t["nif"].lower() or query_clean in t["nombre"].lower():
-            encontrado = t
-            break
-
-    if encontrado:
-        st.session_state["trans_data"] = encontrado
-        st.success(f"✅ Transportista verificado y extraído: **{encontrado['nombre']}** ({encontrado['nif']})")
-    else:
-        # Si no está en la BBDD local, genera la plantilla de extracción con el dato introducido
-        st.session_state["trans_data"] = {
-            "nif": query.upper() if len(query) <= 9 and query[0].isalpha() else "B99999999",
-            "nombre": query.title() if not query[0].isalpha() or len(query) > 9 else "Empresa Verificada S.L.",
-            "nima": "2900000000",
-            "inscripcion": "TRA-VERIFICADO",
-            "tipo": "Transportista Profesional",
-            "direccion": "Dirección Verificada S/N",
-            "conductor": "Conductor Asignado",
-            "matricula": "0000-BBB",
-            "telefono": "600000000",
-            "email": "contacto@transportista.com"
-        }
-        st.info(f"ℹ️ Registros verificados y adaptados para: **{query}**")
-
-# BARRA LATERAL
-with st.sidebar:
-    st.header("📊 Gestión de Registros")
-    st.write("Descarga la base de datos completa de documentos generados:")
-
-    if os.path.exists(EXCEL_PATH):
-        with open(EXCEL_PATH, "rb") as f_excel:
-            st.download_button(
-                label="📥 Descargar Registro Excel Completo",
-                data=f_excel,
-                file_name="registro_documentos.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                key="btn_excel_sidebar"
-            )
-    else:
-        st.info("ℹ️ Aún no hay registros guardados.")
 
 def obtener_siguiente_correlativo() -> int:
     if not os.path.exists(EXCEL_PATH):
@@ -140,7 +42,25 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     correlativo_str = str(correlativo).zfill(3)
     return f"{nima_10}{anio}{correlativo_str}"
 
-# MODO VISOR
+# --- BARRA LATERAL ---
+with st.sidebar:
+    st.header("📊 Gestión de Registros")
+    st.write("Descarga la base de datos completa de documentos generados:")
+
+    if os.path.exists(EXCEL_PATH):
+        with open(EXCEL_PATH, "rb") as f_excel:
+            st.download_button(
+                label="📥 Descargar Registro Excel Completo",
+                data=f_excel,
+                file_name="registro_documentos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="btn_excel_sidebar"
+            )
+    else:
+        st.info("ℹ️ Aún no hay registros guardados.")
+
+# --- MODO VISOR (ACCESO DESDE CÓDIGO QR) ---
 if "doc" in st.query_params:
     doc_id = st.query_params["doc"]
     st.title(f"🔎 Verificación de Documento: {doc_id}")
@@ -169,14 +89,31 @@ if "doc" in st.query_params:
         st.rerun()
     st.stop()
 
-# MODO FORMULARIO
+# --- MODO FORMULARIO PRINCIPAL ---
 ahora_espana = obtener_ahora_espana()
 
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
 st.write("Rellena las secciones para generar el PDF oficial y volcar el registro en Excel.")
 
 with st.form("di_form_completo"):
-    st.header("1. OPERADOR Y DATOS GENERALES")
+
+    # 1. LO PRIMERO: Nº DE DOCUMENTO Y DATOS DE FECHA/HORA
+    siguiente_correlativo = obtener_siguiente_correlativo()
+    di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
+
+    st.header("1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA")
+    col_d1, col_d2, col_d3 = st.columns(3)
+    with col_d1:
+        di_num = st.text_input("🆔 Nº Documento (Autogenerado):", value=di_sugerido)
+    with col_d2:
+        fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
+    with col_d3:
+        hora_inicio = st.text_input("Hora (España):", value=ahora_espana.strftime("%H:%M"))
+
+    st.markdown("---")
+
+    # 2. OPERADOR Y DATOS GENERALES
+    st.header("2. OPERADOR DEL TRASLADO")
     c_op1, c_op2, c_op3 = st.columns(3)
     with c_op1:
         op_nif = st.text_input("NIF Operador:", value="B12345678")
@@ -193,20 +130,10 @@ with st.form("di_form_completo"):
         op_telefono = st.text_input("Teléfono Operador:", value="952000000")
         op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
 
-    siguiente_correlativo = obtener_siguiente_correlativo()
-    di_sugerido = generar_numero_di(op_nima, siguiente_correlativo)
-
     st.markdown("---")
-    col_d1, col_d2, col_d3 = st.columns(3)
-    with col_d1:
-        di_num = st.text_input("🆔 Nº Documento (Autogenerado correlativo):", value=di_sugerido)
-    with col_d2:
-        fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
-    with col_d3:
-        hora_inicio = st.text_input("Hora (España):", value=ahora_espana.strftime("%H:%M"))
 
-    st.markdown("---")
-    st.header("2. ORIGEN DEL TRASLADO")
+    # 3. ORIGEN DEL TRASLADO
+    st.header("3. ORIGEN DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
         ori_nif = st.text_input("NIF Origen:", value="A98765432")
@@ -224,7 +151,9 @@ with st.form("di_form_completo"):
         ori_email = st.text_input("Email Origen:", value="origen@empresa.com")
 
     st.markdown("---")
-    st.header("3. DESTINO DEL TRASLADO")
+
+    # 4. DESTINO DEL TRASLADO
+    st.header("4. DESTINO DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
         des_nif = st.text_input("NIF Destino:", value="B55544332")
@@ -242,7 +171,9 @@ with st.form("di_form_completo"):
         des_email = st.text_input("Email Destino:", value="destino@reciclaje.com")
 
     st.markdown("---")
-    st.header("4. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
+
+    # 5. INFORMACIÓN SOBRE EL RESIDUO
+    st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
     c1, c2 = st.columns(2)
     with c1:
         ler = st.text_input("Código LER:", value="17 09 04")
@@ -254,53 +185,28 @@ with st.form("di_form_completo"):
         desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="Acumulación de residuos previa a valorización")
 
     st.markdown("---")
-    st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
 
-    # A. BOTÓN / ACCIÓN CARGAR TRANSPORTISTA HABITUAL (AL PRINCIPIO DE LA SECCIÓN)
-    col_hab1, col_hab2 = st.columns([3, 1])
-    with col_hab1:
-        st.markdown("**⚡ Cargar Transportista Predeterminado de tu perfil:**")
-    with col_hab2:
-        btn_habitual = st.form_submit_button("⚡ Cargar Habitual")
-        if btn_habitual:
-            cargar_habitual()
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # B. BLOQUE VERIFICAR Y EXTRAER POR NOMBRE O CIF
-    st.markdown("**🔍 Verificar y Extraer Datos de Transportista (Nombre / Razón Social o CIF):**")
-    col_v1, col_v2 = st.columns([3, 1])
-    with col_v1:
-        busqueda_input = st.text_input("Introduce CIF o Nombre del Transportista:", key="input_buscar_trans", label_visibility="collapsed")
-    with col_v2:
-        btn_verificar = st.form_submit_button("🔍 Verificar y Extraer")
-        if btn_verificar:
-            verificar_y_extraer_transportista(busqueda_input)
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # C. FORMULARIO AUTOCOMPLETADO
-    d_t = st.session_state["trans_data"]
-
+    # 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA (SIMPLIFICADO Y LIMPIO)
+    st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
     c1, c2, c3 = st.columns(3)
     with c1:
-        trans_nif = st.text_input("N.I.F. Transportista:", value=d_t.get("nif", ""))
-        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value=d_t.get("nombre", ""))
-        trans_nima = st.text_input("NIMA Transportista:", value=d_t.get("nima", ""))
+        trans_nif = st.text_input("N.I.F. Transportista:", value="B11223344")
+        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="Transportes Rápidos S.L.")
+        trans_nima = st.text_input("NIMA Transportista:", value="112233445")
     with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción / Autorización SIRA:", value=d_t.get("inscripcion", ""))
-        trans_tipo = st.text_input("Tipo Transportista:", value=d_t.get("tipo", ""))
-        trans_direccion = st.text_input("Dirección Transportista:", value=d_t.get("direccion", ""))
+        trans_inscripcion = st.text_input("Nº Inscripción / Autorización:", value="TRA-004-AND")
+        trans_tipo = st.text_input("Tipo Transportista:", value="Transportista Profesional")
+        trans_direccion = st.text_input("Dirección Transportista:", value="Av. Logística 8, Málaga")
     with c3:
-        trans_conductor = st.text_input("Conductor:", value=d_t.get("conductor", ""))
-        trans_matricula = st.text_input("Matrícula y Vehículo:", value=d_t.get("matricula", ""))
-        trans_telefono = st.text_input("Teléfono Transportista:", value=d_t.get("telefono", ""))
-        trans_email = st.text_input("Email Transportista:", value=d_t.get("email", ""))
+        trans_conductor = st.text_input("Conductor:", value="Juan Pérez")
+        trans_matricula = st.text_input("Matrícula y Vehículo:", value="1234-XYZ / Camión")
+        trans_telefono = st.text_input("Teléfono Transportista:", value="600112233")
+        trans_email = st.text_input("Email Transportista:", value="trans@rapidos.com")
 
     st.markdown("---")
-    st.header("6. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
+
+    # 7. ACEPTACIÓN DEL RESIDUO
+    st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
     c1, c2, c3 = st.columns(3)
     with c1:
         fecha_entrega = st.text_input("Fecha Entrega:", value=ahora_espana.strftime("%d/%m/%Y"))
@@ -313,7 +219,7 @@ with st.form("di_form_completo"):
 
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
 
-# PROCESAMIENTO Y GENERACIÓN
+# --- PROCESAMIENTO Y GENERACIÓN DEL DOCUMENTO ---
 if btn_generar:
     if not di_num:
         st.error("Por favor, introduce el Número de Documento (DI).")
@@ -496,7 +402,7 @@ if btn_generar:
 
         col_a, col_b = st.columns([1, 3])
         with col_a:
-            st.image(qr_path, caption="Código QR", width=150)
+            st.image(qr_path, caption="Código QR Generado", width=150)
         with col_b:
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
