@@ -21,9 +21,8 @@ SPAIN_TZ = pytz.timezone("Europe/Madrid")
 def obtener_ahora_espana():
     return datetime.now(SPAIN_TZ)
 
-# Base de datos local / Registro de Transportistas habituales / SIRA
-# Se puede buscar por CIF o por Nombre
-TRANSPORTISTAS_SIRA = [
+# Base de datos local / Registro de Transportistas habituales
+TRANSPORTISTAS_HABITUALES = [
     {
         "nif": "B11223344",
         "nombre": "Transportes Rápidos S.L.",
@@ -126,34 +125,22 @@ url_base = st.text_input(
     value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app"
 )
 
-# SECCIÓN DE BÚSQUEDA RÁPIDA DE TRANSPORTISTA (POR CIF O NOMBRE)
-st.markdown("---")
-st.subheader("🔍 Buscador de Transportista SIRA (Búsqueda por CIF o Nombre)")
-col_busq1, col_busq2 = st.columns([3, 1])
-
-opciones_transportistas = ["-- Seleccionar o Buscar Transportista --"] + [
-    f"{t['nif']} - {t['nombre']} (NIMA: {t['nima']})" for t in TRANSPORTISTAS_SIRA
+# SECCIÓN DE BÚSQUEDA / AUTORRELLENADO RÁPIDO
+opciones_transportistas = ["-- Seleccionar Transportista de la lista (Opcional) --"] + [
+    f"{t['nif']} | {t['nombre']} (NIMA: {t['nima']})" for t in TRANSPORTISTAS_HABITUALES
 ]
 
-with col_busq1:
-    trans_seleccionado = st.selectbox(
-        "Introduce o selecciona el CIF / Nombre del transportista registrado:",
-        options=opciones_transportistas
-    )
+trans_seleccionado = st.selectbox(
+    "🔍 Cargar transportista habitual guardado en el sistema:",
+    options=opciones_transportistas
+)
 
-with col_busq2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.link_button(
-        "🌐 Consultar en SIRA (Junta de Andalucía)",
-        "https://www.juntadeandalucia.es/temas/empresas/obligaciones/medio-ambiente/paginas/gestion-residuos.html"
-    )
-
-# Valores por defecto para el formulario de transportista
+# Valores por defecto para la sección del transportista
 datos_t = {
     "nif": "B11223344",
     "nombre": "Transportes Rápidos S.L.",
     "nima": "112233445",
-    "inscripcion": "TRA-004",
+    "inscripcion": "TRA-004-AND",
     "tipo": "Transportista Profesional",
     "direccion": "Av. Logística 8",
     "conductor": "Juan Pérez",
@@ -162,8 +149,8 @@ datos_t = {
     "email": "trans@rapidos.com"
 }
 
-if trans_seleccionado != "-- Seleccionar o Buscar Transportista --":
-    for t in TRANSPORTISTAS_SIRA:
+if trans_seleccionado != "-- Seleccionar Transportista de la lista (Opcional) --":
+    for t in TRANSPORTISTAS_HABITUALES:
         if t['nif'] in trans_seleccionado:
             datos_t = t
             break
@@ -172,9 +159,9 @@ with st.form("di_form_completo"):
     st.header("1. OPERADOR Y DATOS GENERALES")
     c_op1, c_op2, c_op3 = st.columns(3)
     with c_op1:
-        op_nima = st.text_input("NIMA Operador:", value="123456789")
         op_nif = st.text_input("NIF Operador:", value="B12345678")
         op_nombre = st.text_input("Razón Social / Nombre:", value="Empresa Operadora S.L.")
+        op_nima = st.text_input("NIMA Operador:", value="123456789")
     with c_op2:
         op_inscripcion = st.text_input("Nº Inscripción:", value="INS-001")
         op_tipo = st.text_input("Tipo Operador:", value="Gestor")
@@ -192,7 +179,7 @@ with st.form("di_form_completo"):
     st.markdown("---")
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
-        di_num = st.text_input("🆔 Nº Documento (Autogenerado con 3 dígitos correlativos):", value=di_sugerido)
+        di_num = st.text_input("🆔 Nº Documento (Autogenerado correlativo):", value=di_sugerido)
     with col_d2:
         fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
     with col_d3:
@@ -248,13 +235,31 @@ with st.form("di_form_completo"):
 
     st.markdown("---")
     st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
+    
+    # BOTÓN DE BÚSQUEDA PÚBLICA DE SIRA UBICADO DIRECTAMENTE AQUÍ
+    st.markdown("""
+        <div style="background-color: #f0f7ff; padding: 10px 15px; border-radius: 8px; border-left: 5px solid #0066cc; margin-bottom: 12px;">
+            <p style="margin: 0; font-size: 0.9em; color: #003366;">
+                🔍 <b>¿Quieres verificar el CIF o Nombre en el Buscador Público de SIRA?</b><br>
+                Accede directamente al Registro Oficial de la Junta de Andalucía para buscar por NIF/CIF o Razón Social:
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.link_button(
+        "🌐 Consultar CIF / Nombre en Buscador SIRA (Junta de Andalucía)",
+        "https://www.juntadeandalucia.es/temas/empresas/obligaciones/medio-ambiente/paginas/gestion-residuos.html",
+        use_container_width=True
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
     c1, c2, c3 = st.columns(3)
     with c1:
         trans_nif = st.text_input("N.I.F. Transportista:", value=datos_t["nif"])
-        trans_nombre = st.text_input("Razón Social Transportista:", value=datos_t["nombre"])
+        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value=datos_t["nombre"])
         trans_nima = st.text_input("NIMA Transportista:", value=datos_t["nima"])
     with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción Transportista:", value=datos_t["inscripcion"])
+        trans_inscripcion = st.text_input("Nº Inscripción / Autorización SIRA:", value=datos_t["inscripcion"])
         trans_tipo = st.text_input("Tipo Transportista:", value=datos_t["tipo"])
         trans_direccion = st.text_input("Dirección Transportista:", value=datos_t["direccion"])
     with c3:
@@ -276,7 +281,6 @@ with st.form("di_form_completo"):
         motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
 
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
-
 
 # PROCESAMIENTO
 if btn_generar:
