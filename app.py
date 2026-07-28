@@ -8,25 +8,6 @@ import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# Base de datos simulada de clientes / usuarios
-USUARIOS = {
-    "ingenieria@galainingenieria.es": {
-        "password": "Galain2026",
-        "empresa": "Galain Ingeniería, S.L.",
-        "folder": "datos_alfa"
-    },
-    "cliente2@empresa.com": {
-        "password": "clave_segura_2",
-        "empresa": "Logística Beta S.A.",
-        "folder": "datos_beta"
-    }
-}
-
-# Control de estado de sesión
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
-    st.session_state["usuario_actual"] = None
-
 # 1. PANTALLA DE LOGIN
 if not st.session_state["autenticado"]:
     st.title("🔐 Acceso al Gestor de Residuos")
