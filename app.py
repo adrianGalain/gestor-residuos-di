@@ -49,7 +49,7 @@ with st.form("di_form_completo"):
     st.header("1. DATOS GENERALES DEL TRASLADO")
     st.info("💡 **Configuración del QR**: Introduce la URL donde tienes alojada esta app. Si estás probando en tu ordenador, deja localhost.")
     
-    url_base = st.text_input("🌐 URL Base de la Aplicación:", value="https://TU-APP-EN-STREAMLIT.streamlit.app")
+    url_base = st.text_input("🌐 URL Base de la Aplicación:", value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
     
     col1, col2, col3 = st.columns(3)
     with col1:
