@@ -21,6 +21,43 @@ EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
+# --- BASE DE DATOS DE CÓDIGOS LER (AMPLIABLE) ---
+# Puedes añadir o reemplazar este diccionario con la lista completa de +800 códigos
+DICCIONARIO_LER = {
+    "": "",
+    "01 01 01": "Residuos de la extracción de minerales metálicos",
+    "01 01 02": "Residuos de la extracción de minerales no metálicos",
+    "02 01 04": "Residuos de plásticos (excepto embalajes)",
+    "03 01 05": "Serrín, virutas, recortes, madera, tableros de partículas y chapas distintos de los mencionados en el código 03 01 04",
+    "08 03 18": "Residuos de tóner de impresión distintos de los mencionados en el código 08 03 17",
+    "12 01 01": "Limaduras y virutas de metales férreos",
+    "12 01 03": "Limaduras y virutas de metales no férreos",
+    "15 01 01": "Envases de papel y cartón",
+    "15 01 02": "Envases de plástico",
+    "15 01 03": "Envases de madera",
+    "15 01 04": "Envases metálicos",
+    "15 01 05": "Envases compuestos",
+    "15 01 06": "Envases mezclados",
+    "15 01 07": "Envases de vidrio",
+    "15 01 10*": "Envases que contienen restos de sustancias peligrosas o están contaminados por ellas",
+    "16 01 03": "Neumáticos fuera de uso",
+    "16 02 14": "Equipos desechados distintos de los mencionados en los códigos 16 02 09 a 16 02 13",
+    "16 06 04": "Pilas alcalinas (excepto 16 06 03)",
+    "17 01 01": "Hormigón",
+    "17 01 02": "Ladrillos",
+    "17 01 07": "Mezclas de hormigón, ladrillos, tejas y materiales cerámicos distintas de las mencionadas en el código 17 01 06",
+    "17 02 01": "Madera (Construcción)",
+    "17 02 03": "Plástico (Construcción)",
+    "17 04 05": "Hierro y acero",
+    "17 09 04": "Residuos mezclados de construcción y demolición distintos de los mencionados en los códigos 17 09 01, 17 09 02 y 17 09 03",
+    "20 01 01": "Papel y cartón (Municipal)",
+    "20 01 02": "Vidrio (Municipal)",
+    "20 01 08": "Residuos biodegradables de cocinas y restaurantes",
+    "20 01 39": "Plásticos (Municipal)",
+    "20 03 01": "Mezcla de residuos municipales",
+    "OTRO": "Otro código LER no listado (Introducir manualmente)"
+}
+
 # --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP ---
 LISTA_PROVINCIAS = [
     "", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona",
@@ -32,7 +69,6 @@ LISTA_PROVINCIAS = [
     "Zamora", "Zaragoza", "Ceuta", "Melilla"
 ]
 
-# Prefijos de Código Postal por Provincia
 PREFIJOS_CP = {
     "Álava": "01", "Albacete": "02", "Alicante": "03", "Almería": "04", "Ávila": "05",
     "Badajoz": "06", "Illes Balears": "07", "Barcelona": "08", "Burgos": "09", "Cáceres": "10",
@@ -46,7 +82,6 @@ PREFIJOS_CP = {
     "Bizkaia": "48", "Zamora": "49", "Zaragoza": "50", "Ceuta": "51", "Melilla": "52"
 }
 
-# Municipios de referencia
 MUNICIPIOS_POR_PROVINCIA = {
     "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
     "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
@@ -98,10 +133,10 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     return f"{nima_10}{anio}{correlativo_str}"
 
 # OPCIONES
-OPCIONES_OPERADOR = ["A02 (Agente RNP)", "P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)", "P05 (Poseedor)"]
-OPCIONES_ORIGEN = ["P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)", "P05 (Poseedor)"]
+OPCIONES_OPERADOR = ["A02", "P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
+OPCIONES_ORIGEN = ["P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
 OPCIONES_DESTINO = ["G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
-OPCIONES_TRANSPORTISTA = ["T02 (Transportista RNP)"]
+OPCIONES_TRANSPORTISTA = ["T02 (Transportista RNP)", "T01", "T03"]
 
 # --- BARRA LATERAL ---
 with st.sidebar:
@@ -273,9 +308,25 @@ st.markdown("---")
 st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
 c1, c2 = st.columns(2)
 with c1:
-    ler = st.text_input("Código LER:", value="")
-    desc_residuo = st.text_area("Descripción del residuo:", value="")
+    opciones_ler_keys = list(DICCIONARIO_LER.keys())
+    
+    ler_seleccionado = st.selectbox(
+        "Seleccione Código LER:",
+        options=opciones_ler_keys,
+        format_func=lambda x: f"{x} - {DICCIONARIO_LER[x]}" if x and x != "OTRO" else ("Otro / Personalizado" if x == "OTRO" else "Seleccionar LER..."),
+        key="ler_select"
+    )
+
+    if ler_seleccionado == "OTRO":
+        ler = st.text_input("Ingrese Código LER personalizado:", value="", placeholder="Ej: 15 01 01")
+        desc_sugerida = ""
+    else:
+        ler = ler_seleccionado
+        desc_sugerida = DICCIONARIO_LER.get(ler_seleccionado, "")
+
+    desc_residuo = st.text_area("Descripción del residuo:", value=desc_sugerida)
     cantidad_kg = st.text_input("Cantidad (kg):", value="")
+
 with c2:
     operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="")
     operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="")
