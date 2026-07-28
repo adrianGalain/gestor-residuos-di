@@ -10,9 +10,9 @@ from openpyxl import Workbook, load_workbook
 
 # Base de datos simulada de clientes / usuarios
 USUARIOS = {
-    "cliente1@empresa.com": {
-        "password": "clave_segura_1",
-        "empresa": "Transportes Alfa S.L.",
+    "ingenieria@galainingenieria.es": {
+        "password": "Galain2026",
+        "empresa": "Galain Ingeniería, S.L.",
         "folder": "datos_alfa"
     },
     "cliente2@empresa.com": {
