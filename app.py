@@ -21,33 +21,46 @@ EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
-# Mapeo de los 2 primeros dígitos del CP a Provincias de España
-PROVINCIAS_CP = {
-    "01": "Araba/Álava", "02": "Albacete", "03": "Alicante/Alacant", "04": "Almería", "05": "Ávila",
-    "06": "Badajoz", "07": "Balears, Illes", "08": "Barcelona", "09": "Burgos", "10": "Cáceres",
-    "11": "Cádiz", "12": "Castellón/Castelló", "13": "Ciudad Real", "14": "Córdoba", "15": "A Coruña",
-    "16": "Cuenca", "17": "Girona", "18": "Granada", "19": "Guadalajara", "20": "Gipuzkoa",
-    "21": "Huelva", "22": "Huesca", "23": "Jaén", "24": "León", "25": "Lleida", "26": "La Rioja",
-    "27": "Lugo", "28": "Madrid", "29": "Málaga", "30": "Murcia", "31": "Navarra", "32": "Ourense",
-    "33": "Asturias", "34": "Palencia", "35": "Las Palmas", "36": "Pontevedra", "37": "Salamanca",
-    "38": "Santa Cruz de Tenerife", "39": "Cantabria", "40": "Segovia", "41": "Sevilla", "42": "Soria",
-    "43": "Tarragona", "44": "Teruel", "45": "Toledo", "46": "Valencia/València", "47": "Valladolid",
-    "48": "Bizkaia", "49": "Zamora", "50": "Zaragoza", "51": "Ceuta", "52": "Melilla"
+# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP (EJEMPLOS DE REFERENCIA Y ESTRUCTURA) ---
+LISTA_PROVINCIAS = [
+    "", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona",
+    "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "A Coruña",
+    "Cuenca", "Girona", "Granada", "Guadalajara", "Gipuzkoa", "Huelva", "Huesca", "Illes Balears",
+    "Jaén", "La Rioja", "Las Palmas", "León", "Lleida", "Lugo", "Madrid", "Málaga", "Murcia",
+    "Navarra", "Ourense", "Palencia", "Pontevedra", "Salamanca", "Santa Cruz de Tenerife", "Segovia",
+    "Sevilla", "Soria", "Tarragona", "Teruel", "Toledo", "Valencia", "Valladolid", "Bizkaia",
+    "Zamora", "Zaragoza", "Ceuta", "Melilla"
+]
+
+# Prefijos de Código Postal por Provincia para autocompletado y filtrado
+PREFIJOS_CP = {
+    "Álava": "01", "Albacete": "02", "Alicante": "03", "Almería": "04", "Ávila": "05",
+    "Badajoz": "06", "Illes Balears": "07", "Barcelona": "08", "Burgos": "09", "Cáceres": "10",
+    "Cádiz": "11", "Castellón": "12", "Ciudad Real": "13", "Córdoba": "14", "A Coruña": "15",
+    "Cuenca": "16", "Girona": "17", "Granada": "18", "Guadalajara": "19", "Gipuzkoa": "20",
+    "Huelva": "21", "Huesca": "22", "Jaén": "23", "León": "24", "Lleida": "25", "La Rioja": "26",
+    "Lugo": "27", "Madrid": "28", "Málaga": "29", "Murcia": "30", "Navarra": "31", "Ourense": "32",
+    "Asturias": "33", "Palencia": "34", "Las Palmas": "35", "Pontevedra": "36", "Salamanca": "37",
+    "Santa Cruz de Tenerife": "38", "Cantabria": "39", "Segovia": "40", "Sevilla": "41", "Soria": "42",
+    "Tarragona": "43", "Teruel": "44", "Toledo": "45", "Valencia": "46", "Valladolid": "47",
+    "Bizkaia": "48", "Zamora": "49", "Zaragoza": "50", "Ceuta": "51", "Melilla": "52"
 }
 
-def obtener_provincia_por_cp(cp: str) -> str:
-    cp_clean = cp.strip()
-    if len(cp_clean) == 5 and cp_clean.isdigit():
-        prefijo = cp_clean[:2]
-        return PROVINCIAS_CP.get(prefijo, "")
-    return ""
+# Ejemplos de Municipios principales por Provincia (Puedes ampliar la lista según tus necesidades)
+MUNICIPIOS_POR_PROVINCIA = {
+    "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
+    "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
+    "Sevilla": ["Sevilla", "Dos Hermanas", "Alcalá de Guadaíra", "Utrera", "Ecija", "Mairena del Aljarafe"],
+    "Madrid": ["Madrid", "Móstoles", "Alcalá de Henares", "Fuenlabrada", "Leganés", "Getafe", "Alcorcón"],
+    "Barcelona": ["Barcelona", "L'Hospitalet de Llobregat", "Badalona", "Terrassa", "Sabadell", "Mataró"],
+    "Valencia": ["Valencia", "Torrent", "Gandia", "Paterna", "Sagunto"],
+}
 
 # --- FUNCIONES DE VALIDACIÓN ---
 def validar_nif_cif_nie(documento: str) -> bool:
     doc = documento.strip().upper()
     if not doc:
-        return True  # Si está vacío lo evalúa el control de obligatorios
-    # Regex general para NIF (8 dígitos + letra), NIE (X/Y/Z + 7 dígitos + letra), CIF (Letra + 7 dígitos + letra/número)
+        return True
     pattern = r'^([ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]|[XYZ]\d{7}[A-Z]|\d{8}[A-Z])$'
     return bool(re.match(pattern, doc))
 
@@ -149,9 +162,52 @@ with col_d3:
 
 st.markdown("---")
 
+# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO
+def selector_ubicacion(prefix_key: str, label_titulo: str):
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        prov_sel = st.selectbox(
+            f"Provincia {label_titulo}:",
+            options=LISTA_PROVINCIAS,
+            index=0,
+            key=f"{prefix_key}_prov"
+        )
+    
+    # Obtener lista de municipios filtrada por provincia
+    muni_options = [""] + MUNICIPIOS_POR_PROVINCIA.get(prov_sel, []) if prov_sel else [""]
+    
+    with col2:
+        muni_sel = st.selectbox(
+            f"Municipio {label_titulo}:",
+            options=muni_options,
+            index=0,
+            key=f"{prefix_key}_muni",
+            help="Escribe para buscar el municipio de la provincia seleccionada"
+        )
+        # Si no está en la lista prediseñada, permite escribir uno personalizado
+        if not muni_options or len(muni_options) == 1:
+            muni_custom = st.text_input(f"O escribe el Municipio {label_titulo}:", key=f"{prefix_key}_muni_custom")
+            if muni_custom:
+                muni_sel = muni_custom
+
+    # Cálculo o sugerencia del Código Postal según el prefijo de la provincia
+    prefijo_cp = PREFIJOS_CP.get(prov_sel, "")
+    cp_sugerido = f"{prefijo_cp}001" if prefijo_cp else ""
+
+    with col3:
+        cp_sel = st.text_input(
+            f"C.P. {label_titulo} (5 dígitos):",
+            value=cp_sugerido,
+            max_chars=5,
+            key=f"{prefix_key}_cp",
+            placeholder="Ej: 18001"
+        )
+    return prov_sel, muni_sel, cp_sel
+
 # 2. OPERADOR DEL TRASLADO
 st.header("2. OPERADOR DEL TRASLADO")
-c_op1, c_op2, c_op3 = st.columns(3)
+c_op1, c_op2 = st.columns(2)
 with c_op1:
     op_nif = st.text_input("NIF/CIF Operador:", value="", placeholder="Ej: B12345678")
     op_nombre = st.text_input("Razón Social / Nombre Operador:", value="")
@@ -163,19 +219,19 @@ with c_op2:
     op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
     op_direccion = st.text_input("Dirección Operador:", value="")
 
-with c_op3:
-    op_cp = st.text_input("C.P. Operador (5 dígitos):", value="", max_chars=5, placeholder="Ej: 29001")
-    prov_auto_op = obtener_provincia_por_cp(op_cp)
-    op_muni = st.text_input("Municipio Operador:", value="")
-    op_prov = st.text_input("Provincia Operador:", value=prov_auto_op)
+op_prov, op_muni, op_cp = selector_ubicacion("op", "Operador")
+
+col_op_extra1, col_op_extra2 = st.columns(2)
+with col_op_extra1:
     op_telefono = st.text_input("Teléfono Operador:", value="")
+with col_op_extra2:
     op_email = st.text_input("Correo Electrónico Operador:", value="")
 
 st.markdown("---")
 
 # 3. ORIGEN DEL TRASLADO
 st.header("3. ORIGEN DEL TRASLADO")
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1:
     ori_nif = st.text_input("NIF/CIF Origen:", value="", placeholder="Ej: A87654321")
     ori_nombre = st.text_input("Razón Social Origen:", value="")
@@ -187,19 +243,19 @@ with c2:
     ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
     ori_direccion = st.text_input("Dirección Origen:", value="")
 
-with c3:
-    ori_cp = st.text_input("C.P. Origen (5 dígitos):", value="", max_chars=5, placeholder="Ej: 41001")
-    prov_auto_ori = obtener_provincia_por_cp(ori_cp)
-    ori_muni = st.text_input("Municipio Origen:", value="")
-    ori_prov = st.text_input("Provincia Origen:", value=prov_auto_ori)
+ori_prov, ori_muni, ori_cp = selector_ubicacion("ori", "Origen")
+
+col_ori_extra1, col_ori_extra2 = st.columns(2)
+with col_ori_extra1:
     ori_telefono = st.text_input("Teléfono Origen:", value="")
+with col_ori_extra2:
     ori_email = st.text_input("Email Origen:", value="")
 
 st.markdown("---")
 
 # 4. DESTINO DEL TRASLADO
 st.header("4. DESTINO DEL TRASLADO")
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1:
     des_nif = st.text_input("NIF/CIF Destino:", value="", placeholder="Ej: B99887766")
     des_nombre = st.text_input("Razón Social Destino:", value="")
@@ -211,12 +267,12 @@ with c2:
     des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
     des_direccion = st.text_input("Dirección Destino:", value="")
 
-with c3:
-    des_cp = st.text_input("C.P. Destino (5 dígitos):", value="", max_chars=5, placeholder="Ej: 28001")
-    prov_auto_des = obtener_provincia_por_cp(des_cp)
-    des_muni = st.text_input("Municipio Destino:", value="")
-    des_prov = st.text_input("Provincia Destino:", value=prov_auto_des)
+des_prov, des_muni, des_cp = selector_ubicacion("des", "Destino")
+
+col_des_extra1, col_des_extra2 = st.columns(2)
+with col_des_extra1:
     des_telefono = st.text_input("Teléfono Destino:", value="")
+with col_des_extra2:
     des_email = st.text_input("Email Destino:", value="")
 
 st.markdown("---")
@@ -289,7 +345,7 @@ if btn_generar:
         if val and not validar_cp(val):
             errores.append(f"El Código Postal del {campo} debe ser un número de 5 dígitos.")
 
-    # Validar Formatos de NIMA (deben ser 10 dígitos numéricos)
+    # Validar Formatos de NIMA
     for campo, val in [("Operador", op_nima), ("Origen", ori_nima), ("Destino", des_nima), ("Transportista", trans_nima)]:
         if val and not validar_nima(val):
             errores.append(f"El NIMA del {campo} ('{val}') debe tener exactamente 10 dígitos numéricos.")
