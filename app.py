@@ -10,9 +10,10 @@ from openpyxl import Workbook, load_workbook
 
 # Configuración inicial de la página
 st.set_page_config(
-    page_title="Documento de Identificación (DI) - Residuos",
+    page_title="Gestión DI Residuos",
     page_icon="🚛",
     layout="wide",
+    initial_sidebar_state="collapsed" # En el móvil la barra lateral empieza recogida
 )
 
 EXCEL_PATH = "registro_documentos.xlsx"
