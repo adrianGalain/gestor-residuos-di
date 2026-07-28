@@ -39,9 +39,36 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     ahora = obtener_ahora_espana()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
-    anio = ahora.strftime("%Y")
+    anio = me = ahora.strftime("%Y")
     correlativo_str = str(correlativo).zfill(3)
     return f"{nima_10}{anio}{correlativo_str}"
+
+# --- OPCIONES DE DESPLEGABLES CON DESCRIPCIÓN COMPLETA ---
+OPCIONES_OPERADOR = [
+    "A02",
+    "P03 (Productor > 1000 Tn RNP)",
+    "P04 (Productor < 1000 Tn RNP)",
+    "G04 (Gestor RNP)",
+    "G05 (Gestor Intermedio RNP)"
+]
+
+OPCIONES_ORIGEN = [
+    "P03 (Productor > 1000 Tn RNP)",
+    "P04 (Productor < 1000 Tn RNP)",
+    "G04 (Gestor RNP)",
+    "G05 (Gestor Intermedio RNP)"
+]
+
+OPCIONES_DESTINO = [
+    "G04 (Gestor RNP)",
+    "G05 (Gestor Intermedio RNP)"
+]
+
+OPCIONES_TRANSPORTISTA = [
+    "T02 (Transportista RNP)",
+    "T01",
+    "T03"
+]
 
 # --- BARRA LATERAL ---
 with st.sidebar:
@@ -119,9 +146,9 @@ with st.form("di_form_completo"):
     with c_op1:
         op_nif = st.text_input("NIF Operador:", value="")
         op_nombre = st.text_input("Razón Social / Nombre:", value="")
-        op_tipo = st.selectbox("Tipo Operador:", ["A02", "P03", "P04", "G04", "G05"])
+        op_tipo = st.selectbox("Tipo Operador:", OPCIONES_OPERADOR)
     with c_op2:
-        req_op = " *" if op_tipo != "P04" else ""
+        req_op = " *" if "P04" not in op_tipo else ""
         op_nima = st.text_input(f"NIMA Operador{req_op}:", value="")
         op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
         op_direccion = st.text_input("Dirección:", value="")
@@ -140,9 +167,9 @@ with st.form("di_form_completo"):
     with c1:
         ori_nif = st.text_input("NIF Origen:", value="")
         ori_nombre = st.text_input("Razón Social Origen:", value="")
-        ori_tipo = st.selectbox("Tipo Origen:", ["P03", "P04", "G04", "G05"])
+        ori_tipo = st.selectbox("Tipo Origen:", OPCIONES_ORIGEN)
     with c2:
-        req_ori = " *" if ori_tipo != "P04" else ""
+        req_ori = " *" if "P04" not in ori_tipo else ""
         ori_nima = st.text_input(f"NIMA Origen{req_ori}:", value="")
         ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
         ori_direccion = st.text_input("Dirección Origen:", value="")
@@ -161,9 +188,9 @@ with st.form("di_form_completo"):
     with c1:
         des_nif = st.text_input("NIF Destino:", value="")
         des_nombre = st.text_input("Razón Social Destino:", value="")
-        des_tipo = st.selectbox("Tipo Destino:", ["G04", "G05"])
+        des_tipo = st.selectbox("Tipo Destino:", OPCIONES_DESTINO)
     with c2:
-        req_des = " *" if des_tipo != "P04" else ""
+        req_des = " *" if "P04" not in des_tipo else ""
         des_nima = st.text_input(f"NIMA Destino{req_des}:", value="")
         des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
         des_direccion = st.text_input("Dirección Destino:", value="")
@@ -196,9 +223,9 @@ with st.form("di_form_completo"):
     with c1:
         trans_nif = st.text_input("N.I.F. Transportista:", value="")
         trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
-        trans_tipo = st.selectbox("Tipo Transportista:", ["T02", "T01", "T03"], index=0)
+        trans_tipo = st.selectbox("Tipo Transportista:", OPCIONES_TRANSPORTISTA, index=0)
     with c2:
-        req_trans = " *" if trans_tipo != "P04" else ""
+        req_trans = " *" if "P04" not in trans_tipo else ""
         trans_nima = st.text_input(f"NIMA Transportista{req_trans}:", value="")
         trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
         trans_direccion = st.text_input("Dirección Transportista:", value="")
@@ -226,38 +253,36 @@ with st.form("di_form_completo"):
 
 # --- PROCESAMIENTO Y VALIDACIÓN ---
 if btn_generar:
-    # Lista de errores de validación
     errores = []
 
     if not di_num:
         errores.append("El Número de Documento (DI) es obligatorio.")
 
-    # Validaciones condicionales: Obligatorio si NO es P04
-    if op_tipo != "P04":
+    # Validaciones condicionales: Obligatorio si NO contiene P04
+    if "P04" not in op_tipo:
         if not op_nima.strip():
             errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
         if not op_inscripcion.strip():
             errores.append("El Nº de Inscripción del Operador es obligatorio para el tipo seleccionado.")
 
-    if ori_tipo != "P04":
+    if "P04" not in ori_tipo:
         if not ori_nima.strip():
             errores.append("El NIMA de Origen es obligatorio para el tipo seleccionado.")
         if not ori_inscripcion.strip():
             errores.append("El Nº de Inscripción de Origen es obligatorio para el tipo seleccionado.")
 
-    if des_tipo != "P04":
+    if "P04" not in des_tipo:
         if not des_nima.strip():
             errores.append("El NIMA de Destino es obligatorio para el tipo seleccionado.")
         if not des_inscripcion.strip():
             errores.append("El Nº de Inscripción de Destino es obligatorio para el tipo seleccionado.")
 
-    if trans_tipo != "P04":
+    if "P04" not in trans_tipo:
         if not trans_nima.strip():
             errores.append("El NIMA del Transportista es obligatorio para el tipo seleccionado.")
         if not trans_inscripcion.strip():
             errores.append("El Nº de Inscripción del Transportista es obligatorio para el tipo seleccionado.")
 
-    # Si hay errores de validación, los mostramos y paramos el proceso
     if errores:
         for err in errores:
             st.error(f"⚠️ {err}")
