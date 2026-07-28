@@ -351,37 +351,168 @@ if btn_generar:
             pdf_bytes = f.read()
 
         # 3. Guardar en Excel
-        excel_path = "registro_documentos.xlsx"
+       excel_path = "registro_documentos.xlsx"
+
+        columnas_excel = [
+            # Datos Generales y Operador
+            "Nº DI",
+            "Fecha Inicio Traslado",
+            "Hora Inicio",
+            "NIF Operador",
+            "Razón Social Operador",
+            "NIMA Operador",
+            "Nº Inscripción Operador",
+            "Tipo Operador",
+            "Dirección Operador",
+            "CP Operador",
+            "Municipio Operador",
+            "Provincia Operador",
+            "Teléfono Operador",
+            "Email Operador",
+            # Origen
+            "NIF Origen",
+            "Razón Social Origen",
+            "NIMA Origen",
+            "Nº Inscripción Origen",
+            "Tipo Origen",
+            "Dirección Origen",
+            "CP Origen",
+            "Municipio Origen",
+            "Provincia Origen",
+            "Teléfono Origen",
+            "Email Origen",
+            # Destino
+            "NIF Destino",
+            "Razón Social Destino",
+            "NIMA Destino",
+            "Nº Inscripción Destino",
+            "Tipo Destino",
+            "Dirección Destino",
+            "CP Destino",
+            "Municipio Destino",
+            "Provincia Destino",
+            "Teléfono Destino",
+            "Email Destino",
+            # Residuo
+            "Código LER",
+            "Descripción Residuo",
+            "Cantidad (kg)",
+            "Op. Tratamiento Destino",
+            "Op. Tratamiento Desagregada",
+            "Descripción Op. Tratamiento",
+            # Transportista
+            "NIF Transportista",
+            "Razón Social Transportista",
+            "NIMA Transportista",
+            "Nº Inscripción Transportista",
+            "Tipo Transportista",
+            "Dirección Transportista",
+            "Conductor",
+            "Matrícula / Vehículo",
+            "Teléfono Transportista",
+            "Email Transportista",
+            # Aceptación
+            "Fecha Entrega",
+            "Kg Netos Recibidos",
+            "Fecha Aceptación/Rechazo",
+            "Estado Aceptación",
+            "Motivo Rechazo",
+            "Enlace QR Verificación",
+        ]
+
+        fila_datos = [
+            # Datos Generales y Operador
+            di_num,
+            fecha_inicio,
+            hora_inicio,
+            op_nif,
+            op_nombre,
+            op_nima,
+            op_inscripcion,
+            op_tipo,
+            op_direccion,
+            op_cp,
+            op_muni,
+            op_prov,
+            op_telefono,
+            op_email,
+            # Origen
+            ori_nif,
+            ori_nombre,
+            ori_nima,
+            ori_inscripcion,
+            ori_tipo,
+            ori_direccion,
+            ori_cp,
+            ori_muni,
+            ori_prov,
+            ori_telefono,
+            ori_email,
+            # Destino
+            des_nif,
+            des_nombre,
+            des_nima,
+            des_inscripcion,
+            des_tipo,
+            des_direccion,
+            des_cp,
+            des_muni,
+            des_prov,
+            des_telefono,
+            des_email,
+            # Residuo
+            ler,
+            desc_residuo,
+            cantidad_kg,
+            operacion_tratam,
+            operacion_desagregada,
+            desc_operacion,
+            # Transportista
+            trans_nif,
+            trans_nombre,
+            trans_nima,
+            trans_inscripcion,
+            trans_tipo,
+            trans_direccion,
+            trans_conductor,
+            trans_matricula,
+            trans_telefono,
+            trans_email,
+            # Aceptación
+            fecha_entrega,
+            kg_recibidos,
+            fecha_aceptacion,
+            aceptacion_estado,
+            motivo_rechazo,
+            enlace_qr,
+        ]
+
         if not os.path.exists(excel_path):
             wb = Workbook()
             ws = wb.active
             ws.title = "Registros DI"
-            ws.append([
-                "Nº DI", "Fecha", "Hora", "NIF Operador", "Nombre Operador", "NIMA Operador",
-                "NIF Origen", "Origen", "NIF Destino", "Destino", "Código LER",
-                "Residuo", "Kg", "Transportista", "Matrícula", "Aceptado", "Enlace QR"
-            ])
+            ws.append(columnas_excel)
         else:
             wb = load_workbook(excel_path)
             ws = wb.active
 
-        ws.append([
-            di_num, fecha_inicio, hora_inicio, op_nif, op_nombre, op_nima,
-            ori_nif, ori_nombre, des_nif, des_nombre, ler,
-            desc_residuo, cantidad_kg, trans_nombre, trans_matricula, aceptacion_estado, enlace_qr
-        ])
+        ws.append(fila_datos)
         wb.save(excel_path)
 
-        st.success(f"✅ ¡Documento autogenerado con el código: **{di_num}**!")
-
-        col_a, col_b = st.columns([1, 3])
-        with col_a:
-            st.image(qr_path, caption="Código QR", width=150)
-        with col_b:
+# Botones de descarga PDF y Excel
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
             st.download_button(
-                label="📄 Descargar PDF Oficial",
+                label="📄 Descargar PDF del Documento",
                 data=pdf_bytes,
                 file_name=f"DI_{di_num}.pdf",
                 mime="application/pdf",
             )
-            st.code(f"URL del QR: {enlace_qr}", language="text")
+        with col_btn2:
+            with open(excel_path, "rb") as f_excel:
+                st.download_button(
+                    label="📊 Descargar Registro Completo (Excel)",
+                    data=f_excel,
+                    file_name="registro_documentos.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
