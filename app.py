@@ -91,7 +91,10 @@ st.write(
 
 # Configuración básica de URL
 st.info("💡 **Configuración del QR**: Introduce el enlace público de tu app sin barra al final.")
-url_base = st.text_input("🌐 URL Base de la Aplicación:", value="https://tu-app.streamlit.app")
+url_base = st.text_input(
+    "🌐 URL Base de la Aplicación:",
+    value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app",
+)
 
 with st.form("di_form_completo"):
     st.header("1. OPERADOR Y DATOS GENERALES")
