@@ -98,7 +98,7 @@ st.write("Rellena las secciones para generar el PDF oficial y volcar el registro
 
 with st.form("di_form_completo"):
 
-    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA (AUTOMÁTICOS / MANTENIDOS)
+    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA
     siguiente_correlativo = obtener_siguiente_correlativo()
     di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
 
@@ -119,10 +119,11 @@ with st.form("di_form_completo"):
     with c_op1:
         op_nif = st.text_input("NIF Operador:", value="")
         op_nombre = st.text_input("Razón Social / Nombre:", value="")
-        op_nima = st.text_input("NIMA Operador:", value="")
-    with c_op2:
-        op_inscripcion = st.text_input("Nº Inscripción:", value="")
         op_tipo = st.selectbox("Tipo Operador:", ["A02", "P03", "P04", "G04", "G05"])
+    with c_op2:
+        req_op = " *" if op_tipo != "P04" else ""
+        op_nima = st.text_input(f"NIMA Operador{req_op}:", value="")
+        op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
         op_direccion = st.text_input("Dirección:", value="")
     with c_op3:
         op_cp = st.text_input("C.P.:", value="")
@@ -139,10 +140,11 @@ with st.form("di_form_completo"):
     with c1:
         ori_nif = st.text_input("NIF Origen:", value="")
         ori_nombre = st.text_input("Razón Social Origen:", value="")
-        ori_nima = st.text_input("NIMA Origen:", value="")
-    with c2:
-        ori_inscripcion = st.text_input("Nº Inscripción Origen:", value="")
         ori_tipo = st.selectbox("Tipo Origen:", ["P03", "P04", "G04", "G05"])
+    with c2:
+        req_ori = " *" if ori_tipo != "P04" else ""
+        ori_nima = st.text_input(f"NIMA Origen{req_ori}:", value="")
+        ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
         ori_direccion = st.text_input("Dirección Origen:", value="")
     with c3:
         ori_cp = st.text_input("C.P. Origen:", value="")
@@ -159,10 +161,11 @@ with st.form("di_form_completo"):
     with c1:
         des_nif = st.text_input("NIF Destino:", value="")
         des_nombre = st.text_input("Razón Social Destino:", value="")
-        des_nima = st.text_input("NIMA Destino:", value="")
-    with c2:
-        des_inscripcion = st.text_input("Nº Inscripción Destino:", value="")
         des_tipo = st.selectbox("Tipo Destino:", ["G04", "G05"])
+    with c2:
+        req_des = " *" if des_tipo != "P04" else ""
+        des_nima = st.text_input(f"NIMA Destino{req_des}:", value="")
+        des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
         des_direccion = st.text_input("Dirección Destino:", value="")
     with c3:
         des_cp = st.text_input("C.P. Destino:", value="")
@@ -193,10 +196,11 @@ with st.form("di_form_completo"):
     with c1:
         trans_nif = st.text_input("N.I.F. Transportista:", value="")
         trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
-        trans_nima = st.text_input("NIMA Transportista:", value="")
-    with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción / Autorización:", value="")
         trans_tipo = st.selectbox("Tipo Transportista:", ["T02", "T01", "T03"], index=0)
+    with c2:
+        req_trans = " *" if trans_tipo != "P04" else ""
+        trans_nima = st.text_input(f"NIMA Transportista{req_trans}:", value="")
+        trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
         trans_direccion = st.text_input("Dirección Transportista:", value="")
     with c3:
         trans_conductor = st.text_input("Conductor:", value="")
@@ -220,11 +224,45 @@ with st.form("di_form_completo"):
 
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
 
-# --- PROCESAMIENTO Y GENERACIÓN DEL DOCUMENTO ---
+# --- PROCESAMIENTO Y VALIDACIÓN ---
 if btn_generar:
+    # Lista de errores de validación
+    errores = []
+
     if not di_num:
-        st.error("Por favor, introduce el Número de Documento (DI).")
+        errores.append("El Número de Documento (DI) es obligatorio.")
+
+    # Validaciones condicionales: Obligatorio si NO es P04
+    if op_tipo != "P04":
+        if not op_nima.strip():
+            errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
+        if not op_inscripcion.strip():
+            errores.append("El Nº de Inscripción del Operador es obligatorio para el tipo seleccionado.")
+
+    if ori_tipo != "P04":
+        if not ori_nima.strip():
+            errores.append("El NIMA de Origen es obligatorio para el tipo seleccionado.")
+        if not ori_inscripcion.strip():
+            errores.append("El Nº de Inscripción de Origen es obligatorio para el tipo seleccionado.")
+
+    if des_tipo != "P04":
+        if not des_nima.strip():
+            errores.append("El NIMA de Destino es obligatorio para el tipo seleccionado.")
+        if not des_inscripcion.strip():
+            errores.append("El Nº de Inscripción de Destino es obligatorio para el tipo seleccionado.")
+
+    if trans_tipo != "P04":
+        if not trans_nima.strip():
+            errores.append("El NIMA del Transportista es obligatorio para el tipo seleccionado.")
+        if not trans_inscripcion.strip():
+            errores.append("El Nº de Inscripción del Transportista es obligatorio para el tipo seleccionado.")
+
+    # Si hay errores de validación, los mostramos y paramos el proceso
+    if errores:
+        for err in errores:
+            st.error(f"⚠️ {err}")
     else:
+        # Generación del PDF y Excel
         base_limpia = URL_BASE_APP.strip().rstrip("/")
         enlace_qr = f"{base_limpia}?doc={di_num}"
 
