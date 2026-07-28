@@ -3,13 +3,14 @@ from datetime import datetime
 import io
 import os
 import re
+import unicodedata
 import qrcode
 import streamlit as st
 import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# Configuración inicial
+# Configuración inicial de Streamlit
 st.set_page_config(
     page_title="Documento de Identificación (DI) - Residuos",
     page_icon="🚛",
@@ -21,44 +22,70 @@ EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
-# --- BASE DE DATOS DE CÓDIGOS LER (AMPLIABLE) ---
-# Puedes añadir o reemplazar este diccionario con la lista completa de +800 códigos
-DICCIONARIO_LER = {
-    "": "",
-    "01 01 01": "Residuos de la extracción de minerales metálicos",
-    "01 01 02": "Residuos de la extracción de minerales no metálicos",
-    "02 01 04": "Residuos de plásticos (excepto embalajes)",
-    "03 01 05": "Serrín, virutas, recortes, madera, tableros de partículas y chapas distintos de los mencionados en el código 03 01 04",
-    "08 03 18": "Residuos de tóner de impresión distintos de los mencionados en el código 08 03 17",
-    "12 01 01": "Limaduras y virutas de metales férreos",
-    "12 01 03": "Limaduras y virutas de metales no férreos",
-    "15 01 01": "Envases de papel y cartón",
-    "15 01 02": "Envases de plástico",
-    "15 01 03": "Envases de madera",
-    "15 01 04": "Envases metálicos",
-    "15 01 05": "Envases compuestos",
-    "15 01 06": "Envases mezclados",
-    "15 01 07": "Envases de vidrio",
-    "15 01 10*": "Envases que contienen restos de sustancias peligrosas o están contaminados por ellas",
-    "16 01 03": "Neumáticos fuera de uso",
-    "16 02 14": "Equipos desechados distintos de los mencionados en los códigos 16 02 09 a 16 02 13",
-    "16 06 04": "Pilas alcalinas (excepto 16 06 03)",
-    "17 01 01": "Hormigón",
-    "17 01 02": "Ladrillos",
-    "17 01 07": "Mezclas de hormigón, ladrillos, tejas y materiales cerámicos distintas de las mencionadas en el código 17 01 06",
-    "17 02 01": "Madera (Construcción)",
-    "17 02 03": "Plástico (Construcción)",
-    "17 04 05": "Hierro y acero",
-    "17 09 04": "Residuos mezclados de construcción y demolición distintos de los mencionados en los códigos 17 09 01, 17 09 02 y 17 09 03",
-    "20 01 01": "Papel y cartón (Municipal)",
-    "20 01 02": "Vidrio (Municipal)",
-    "20 01 08": "Residuos biodegradables de cocinas y restaurantes",
-    "20 01 39": "Plásticos (Municipal)",
-    "20 03 01": "Mezcla de residuos municipales",
-    "OTRO": "Otro código LER no listado (Introducir manualmente)"
-}
+# --- FUNCIONES DE NORMALIZACIÓN ---
+def normalizar_texto(texto: str) -> str:
+    """Convierte texto a minúsculas, elimina tildes, diacríticos y caracteres especiales."""
+    if not texto:
+        return ""
+    texto = str(texto).lower().strip()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    return re.sub(r'[^a-z0-9]', '', texto)
 
-# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP ---
+def normalizar_ler(codigo: str) -> str:
+    """Extrae únicamente los dígitos numéricos de un código LER para comparación exacta."""
+    if not codigo:
+        return ""
+    return re.sub(r'\D', '', str(codigo))
+
+# --- BASE DE DATOS LER (SIRA) ---
+BASE_DATOS_LER = [
+    {"codigo": "01 01 01", "descripcion": "Residuos de la extracción de minerales metálicos"},
+    {"codigo": "01 01 02", "descripcion": "Residuos de la extracción de minerales no metálicos"},
+    {"codigo": "02 01 04", "descripcion": "Residuos de plásticos (excepto embalajes)"},
+    {"codigo": "03 01 05", "descripcion": "Serrín, virutas, recortes, madera, tableros de partículas distintos de 03 01 04"},
+    {"codigo": "08 03 17*", "descripcion": "Residuos de tóner de impresión que contienen sustancias peligrosas"},
+    {"codigo": "08 03 18", "descripcion": "Residuos de tóner de impresión distintos de los mencionados en el código 08 03 17"},
+    {"codigo": "12 01 01", "descripcion": "Limaduras y virutas de metales férreos"},
+    {"codigo": "12 01 03", "descripcion": "Limaduras y virutas de metales no férreos"},
+    {"codigo": "13 02 05*", "descripcion": "Aceites de motor, de transmisión y de guiado minerales no clorados"},
+    {"codigo": "15 01 01", "descripcion": "Envases de papel y cartón"},
+    {"codigo": "15 01 02", "descripcion": "Envases de plástico"},
+    {"codigo": "15 01 03", "descripcion": "Envases de madera"},
+    {"codigo": "15 01 04", "descripcion": "Envases metálicos"},
+    {"codigo": "15 01 05", "descripcion": "Envases compuestos"},
+    {"codigo": "15 01 06", "descripcion": "Envases mezclados"},
+    {"codigo": "15 01 07", "descripcion": "Envases de vidrio"},
+    {"codigo": "15 01 10*", "descripcion": "Envases que contienen restos de sustancias peligrosas o están contaminados por ellas"},
+    {"codigo": "16 01 03", "descripcion": "Neumáticos fuera de uso"},
+    {"codigo": "16 01 07*", "descripcion": "Filtros de aceite"},
+    {"codigo": "16 02 13*", "descripcion": "Equipos desechados que contienen clorofluorocarbonos, HCFC o HFC"},
+    {"codigo": "16 02 14", "descripcion": "Equipos desechados distintos de los mencionados en los códigos 16 02 09 a 16 02 13"},
+    {"codigo": "16 06 01*", "descripcion": "Baterías de plomo"},
+    {"codigo": "16 06 02*", "descripcion": "Acumuladores de Ni-Cd"},
+    {"codigo": "16 06 03*", "descripcion": "Pilas que contienen mercurio"},
+    {"codigo": "16 06 04", "descripcion": "Pilas alcalinas (excepto 16 06 03)"},
+    {"codigo": "16 06 05", "descripcion": "Otras pilas y acumuladores"},
+    {"codigo": "17 01 01", "descripcion": "Hormigón"},
+    {"codigo": "17 01 02", "descripcion": "Ladrillos"},
+    {"codigo": "17 01 07", "descripcion": "Mezclas de hormigón, ladrillos, tejas y materiales cerámicos (no peligrosas)"},
+    {"codigo": "17 02 01", "descripcion": "Madera (Construcción)"},
+    {"codigo": "17 02 03", "descripcion": "Plástico (Construcción)"},
+    {"codigo": "17 04 05", "descripcion": "Hierro y acero"},
+    {"codigo": "17 09 04", "descripcion": "Residuos mezclados de construcción y demolición distintos de 17 09 01, 17 09 02 y 17 09 03"},
+    {"codigo": "20 01 01", "descripcion": "Papel y cartón (Municipal)"},
+    {"codigo": "20 01 02", "descripcion": "Vidrio (Municipal)"},
+    {"codigo": "20 01 08", "descripcion": "Residuos biodegradables de cocinas y restaurantes"},
+    {"codigo": "20 01 33*", "descripcion": "Baterías y acumuladores especificados en los códigos 16 06 01, 16 06 02 o 16 06 03 (Municipal)"},
+    {"codigo": "20 01 39", "descripcion": "Plásticos (Municipal)"},
+    {"codigo": "20 03 01", "descripcion": "Mezcla de residuos municipales"}
+]
+
+# Mapa normalizado para LER
+DICCIONARIO_LER = {item["codigo"]: item["descripcion"] for item in BASE_DATOS_LER}
+MAPA_LER_CANONICO = {normalizar_ler(item["codigo"]): (item["codigo"], item["descripcion"]) for item in BASE_DATOS_LER}
+
+# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS ---
 LISTA_PROVINCIAS = [
     "", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona",
     "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "A Coruña",
@@ -83,13 +110,21 @@ PREFIJOS_CP = {
 }
 
 MUNICIPIOS_POR_PROVINCIA = {
+    "Almería": ["Almería", "Roquetas de Mar", "El Ejido", "Níjar", "Vícar", "Adra", "Huércal de Almería"],
+    "Cádiz": ["Cádiz", "Jerez de la Frontera", "Algeciras", "San Fernando", "El Puerto de Santa María", "Chiclana de la Frontera"],
+    "Córdoba": ["Córdoba", "Lucena", "Puente Genil", "Montilla", "Priego de Córdoba"],
     "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
+    "Huelva": ["Huelva", "Lepe", "Almonte", "Moguer", "Ayamonte"],
+    "Jaén": ["Jaén", "Linares", "Andújar", "Úbeda", "Martos"],
     "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
     "Sevilla": ["Sevilla", "Dos Hermanas", "Alcalá de Guadaíra", "Utrera", "Ecija", "Mairena del Aljarafe"],
     "Madrid": ["Madrid", "Móstoles", "Alcalá de Henares", "Fuenlabrada", "Leganés", "Getafe", "Alcorcón"],
     "Barcelona": ["Barcelona", "L'Hospitalet de Llobregat", "Badalona", "Terrassa", "Sabadell", "Mataró"],
-    "Valencia": ["Valencia", "Torrent", "Gandia", "Paterna", "Sagunto"],
+    "Valencia": ["Valencia", "Torrent", "Gandia", "Paterna", "Sagunto"]
 }
+
+# Mapas Canónicos para búsqueda flexible de Provincia/Municipio sin tildes
+MAPA_PROVINCIAS_CANONICO = {normalizar_texto(p): p for p in LISTA_PROVINCIAS if p}
 
 # --- FUNCIONES DE VALIDACIÓN ---
 def validar_nif_cif_nie(documento: str) -> bool:
@@ -197,7 +232,7 @@ with col_d3:
 
 st.markdown("---")
 
-# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO
+# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO CON NORMALIZACIÓN
 def selector_ubicacion(prefix_key: str, label_titulo: str):
     col1, col2, col3 = st.columns(3)
     
@@ -307,19 +342,30 @@ st.markdown("---")
 # 5. INFORMACIÓN SOBRE EL RESIDUO
 st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
 c1, c2 = st.columns(2)
+
+options_ler = [""] + [item["codigo"] for item in BASE_DATOS_LER] + ["OTRO"]
+
 with c1:
-    opciones_ler_keys = list(DICCIONARIO_LER.keys())
-    
     ler_seleccionado = st.selectbox(
-        "Seleccione Código LER:",
-        options=opciones_ler_keys,
-        format_func=lambda x: f"{x} - {DICCIONARIO_LER[x]}" if x and x != "OTRO" else ("Otro / Personalizado" if x == "OTRO" else "Seleccionar LER..."),
+        "Seleccione o Busque Código LER (SIRA):",
+        options=options_ler,
+        format_func=lambda x: f"{x} - {DICCIONARIO_LER[x]}" if x and x != "OTRO" else ("Otro código LER (Entrada libre)" if x == "OTRO" else "Seleccionar LER..."),
         key="ler_select"
     )
 
     if ler_seleccionado == "OTRO":
-        ler = st.text_input("Ingrese Código LER personalizado:", value="", placeholder="Ej: 15 01 01")
-        desc_sugerida = ""
+        ler_input_libre = st.text_input("Ingrese Código LER (Ej: 16 06 01, 160601 o 16 06 01*):", value="", placeholder="Ej: 160601")
+        
+        # Búsqueda/Normalización automática del código ingresado manualmente
+        canon_input = normalizar_ler(ler_input_libre)
+        if canon_input in MAPA_LER_CANONICO:
+            codigo_std, desc_std = MAPA_LER_CANONICO[canon_input]
+            ler = codigo_std
+            desc_sugerida = desc_std
+            st.info(f"💡 Reconocido automáticamente como: **{codigo_std}**")
+        else:
+            ler = ler_input_libre
+            desc_sugerida = ""
     else:
         ler = ler_seleccionado
         desc_sugerida = DICCIONARIO_LER.get(ler_seleccionado, "")
