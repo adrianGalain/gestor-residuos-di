@@ -1,41 +1,60 @@
-import streamlit as st
-import qrcode
+import base64
 import os
-from openpyxl import Workbook, load_workbook
+import qrcode
+import streamlit as st
 from fpdf import FPDF
+from openpyxl import Workbook, load_workbook
 
-st.set_page_config(page_title="Documento de Identificación (DI) - Residuos", page_icon="🚛", layout="wide")
+# Configuración inicial de la página
+st.set_page_config(
+    page_title="Documento de Identificación (DI) - Residuos",
+    page_icon="🚛",
+    layout="wide",
+)
 
 # ==========================================
-# 🔍 MODO VISOR (Cuando se escanea el QR)
+# 1. MODO VISOR (Lectura al escanear el QR)
 # ==========================================
-# Detectamos si alguien entra a través de un QR leyendo la URL
 if "doc" in st.query_params:
     doc_id = st.query_params["doc"]
     st.title(f"🔎 Verificación de Documento: {doc_id}")
-    
-    pdf_path = f"DI_{doc_id.replace('/', '_')}.pdf"
-    
-    # Comprobamos si el PDF existe en la carpeta donde corre la app
-    if os.path.exists(pdf_path):
+
+    pdf_filename = f"DI_{doc_id.replace('/', '_')}.pdf"
+
+    if os.path.exists(pdf_filename):
         st.success("✅ Documento original encontrado y verificado.")
-        with open(pdf_path, "rb") as f:
+
+        with open(pdf_filename, "rb") as f:
             pdf_bytes = f.read()
-            
+
+        # Botón para descargar
         st.download_button(
             label="📥 Descargar Documento PDF Oficial",
             data=pdf_bytes,
-            file_name=pdf_path,
-            mime="application/pdf"
+            file_name=pdf_filename,
+            mime="application/pdf",
         )
+
+        st.markdown("---")
+        st.subheader("📄 Vista previa del documento:")
+
+        # Convertir PDF a base64 para renderizarlo directamente en pantalla
+        base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+
+        st.markdown(pdf_display, unsafe_allow_html=True)
+
     else:
-        st.error("❌ El documento no se encuentra en el servidor. Es posible que aún no se haya generado o que la ruta sea incorrecta.")
-        
+        st.error(
+            "❌ El documento no se encuentra en el servidor. Verifica que haya sido generado correctamente."
+        )
+
+    st.markdown("---")
     if st.button("⬅️ Volver a la aplicación principal"):
         st.query_params.clear()
         st.rerun()
-        
-    # Detenemos la ejecución aquí para que el que escanea no vea el formulario de creación
+
+    # Detener la ejecución para no mostrar el formulario de creación al escanear
     st.stop()
 
 
