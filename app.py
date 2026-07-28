@@ -10,6 +10,23 @@ import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
+# app.py
+from flask import Flask, jsonify  # o la librería/framework que estés usando
+from ler_data import CODIGOS_LER
+
+app = Flask(__name__)
+
+@app.route('/api/ler', methods=['GET'])
+def get_codigos_ler():
+    """Endpoint para volcar todos los códigos LER"""
+    return jsonify({
+        "total": len(CODIGOS_LER),
+        "data": CODIGOS_LER
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 # Configuración inicial de Streamlit
 st.set_page_config(
     page_title="Documento de Identificación (DI) - Residuos",
