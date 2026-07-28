@@ -98,10 +98,10 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     return f"{nima_10}{anio}{correlativo_str}"
 
 # OPCIONES
-OPCIONES_OPERADOR = ["A02", "P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
-OPCIONES_ORIGEN = ["P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
+OPCIONES_OPERADOR = ["A02 (Agente RNP)", "P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)", "P05 (Poseedor)"]
+OPCIONES_ORIGEN = ["P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)", "P05 (Poseedor)"]
 OPCIONES_DESTINO = ["G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
-OPCIONES_TRANSPORTISTA = ["T02 (Transportista RNP)", "T01", "T03"]
+OPCIONES_TRANSPORTISTA = ["T02 (Transportista RNP)"]
 
 # --- BARRA LATERAL ---
 with st.sidebar:
