@@ -4,6 +4,7 @@ import io
 import os
 import qrcode
 import streamlit as st
+import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
@@ -15,6 +16,13 @@ st.set_page_config(
 )
 
 EXCEL_PATH = "registro_documentos.xlsx"
+
+# Zona horaria de España (Península / Málaga)
+SPAIN_TZ = pytz.timezone("Europe/Madrid")
+
+def obtener_ahora_espana():
+    """Obtiene la fecha y hora actual ajustada a la zona horaria de España."""
+    return datetime.now(SPAIN_TZ)
 
 # ==========================================
 # BARRA LATERAL (Acceso constante al Excel)
@@ -39,16 +47,29 @@ with st.sidebar:
 # ==========================================
 # FUNCIONES AUXILIARES
 # ==========================================
-def generar_numero_di(nima_operador: str) -> str:
+def obtener_siguiente_correlativo() -> int:
+    """Consulta el Excel para determinar el siguiente número correlativo del día/registro."""
+    if not os.path.exists(EXCEL_PATH):
+        return 1
+    try:
+        wb = load_workbook(EXCEL_PATH)
+        ws = wb.active
+        total_filas = ws.max_row - 1
+        return max(1, total_filas + 1)
+    except Exception:
+        return 1
+
+def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     """Genera automáticamente el Nº DI con el criterio:
-    [NIMA 10 dígitos] + [Año 4 dígitos] + [Contador 7 dígitos (MMDDHHM)]
+    [NIMA 10 dígitos] + [Año 4 dígitos] + [Correlativo 3 dígitos]
+    Ejemplo: 12345678902026001
     """
-    ahora = datetime.now()
+    ahora = obtener_ahora_espana()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
     anio = ahora.strftime("%Y")
-    contador_7 = ahora.strftime("%m%d%H") + ahora.strftime("%M")[0]
-    return f"{nima_10}{anio}{contador_7}"
+    correlativo_str = str(correlativo).zfill(3)
+    return f"{nima_10}{anio}{correlativo_str}"
 
 
 # ==========================================
@@ -95,6 +116,8 @@ if "doc" in st.query_params:
 # ==========================================
 # 2. MODO FORMULARIO (Creación del documento)
 # ==========================================
+ahora_espana = obtener_ahora_espana()
+
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
 st.write("Rellena las secciones para generar el PDF oficial y volcar el registro completo en Excel.")
 
@@ -122,17 +145,18 @@ with st.form("di_form_completo"):
         op_telefono = st.text_input("Teléfono Operador:", value="952000000")
         op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
 
-    # Autogeneración dinámica del Nº DI
-    di_sugerido = generar_numero_di(op_nima)
+    # Autogeneración dinámica del Nº DI con el número correlativo
+    siguiente_correlativo = obtener_siguiente_correlativo()
+    di_sugerido = generar_numero_di(op_nima, siguiente_correlativo)
 
     st.markdown("---")
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
-        di_num = st.text_input("🆔 Nº Documento (Autogenerado):", value=di_sugerido)
+        di_num = st.text_input("🆔 Nº Documento (Autogenerado con 3 dígitos correlativos):", value=di_sugerido)
     with col_d2:
-        fecha_inicio = st.text_input("Fecha inicio traslado:", value=datetime.now().strftime("%d/%m/%Y"))
+        fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
     with col_d3:
-        hora_inicio = st.text_input("Hora:", value=datetime.now().strftime("%H:%M"))
+        hora_inicio = st.text_input("Hora (España):", value=ahora_espana.strftime("%H:%M"))
 
     st.markdown("---")
     st.header("2. ORIGEN DEL TRASLADO")
@@ -203,10 +227,10 @@ with st.form("di_form_completo"):
     st.header("6. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
     c1, c2, c3 = st.columns(3)
     with c1:
-        fecha_entrega = st.text_input("Fecha Entrega:", value=datetime.now().strftime("%d/%m/%Y"))
+        fecha_entrega = st.text_input("Fecha Entrega:", value=ahora_espana.strftime("%d/%m/%Y"))
         kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="2500")
     with c2:
-        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value=datetime.now().strftime("%d/%m/%Y"))
+        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value=ahora_espana.strftime("%d/%m/%Y"))
         aceptacion_estado = st.selectbox("Aceptación:", ["Sí", "No"])
     with c3:
         motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
