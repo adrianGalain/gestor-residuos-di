@@ -98,7 +98,7 @@ st.write("Rellena las secciones para generar el PDF oficial y volcar el registro
 
 with st.form("di_form_completo"):
 
-    # 1. LO PRIMERO: Nº DE DOCUMENTO Y DATOS DE FECHA/HORA
+    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA
     siguiente_correlativo = obtener_siguiente_correlativo()
     di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
 
@@ -113,7 +113,7 @@ with st.form("di_form_completo"):
 
     st.markdown("---")
 
-    # 2. OPERADOR Y DATOS GENERALES
+    # 2. OPERADOR DEL TRASLADO
     st.header("2. OPERADOR DEL TRASLADO")
     c_op1, c_op2, c_op3 = st.columns(3)
     with c_op1:
@@ -121,8 +121,8 @@ with st.form("di_form_completo"):
         op_nombre = st.text_input("Razón Social / Nombre:", value="Empresa Operadora S.L.")
         op_nima = st.text_input("NIMA Operador:", value="123456789")
     with c_op2:
-        op_inscripcion = st.text_input("Nº Inscripción:", value="INS-001")
-        op_tipo = st.text_input("Tipo Operador:", value="Gestor")
+        op_inscripcion = st.text_input("Nº Inscripción:", value="")
+        op_tipo = st.selectbox("Tipo Operador:", ["A02", "P03", "P04", "G04", "G05"])
         op_direccion = st.text_input("Dirección:", value="Calle Industria 12")
     with c_op3:
         op_cp = st.text_input("C.P.:", value="29000")
@@ -141,8 +141,8 @@ with st.form("di_form_completo"):
         ori_nombre = st.text_input("Razón Social Origen:", value="Fábrica Origen S.A.")
         ori_nima = st.text_input("NIMA Origen:", value="987654321")
     with c2:
-        ori_inscripcion = st.text_input("Nº Inscripción Origen:", value="ORI-002")
-        ori_tipo = st.text_input("Tipo Origen:", value="Productor")
+        ori_inscripcion = st.text_input("Nº Inscripción Origen:", value="")
+        ori_tipo = st.selectbox("Tipo Origen:", ["P03", "P04", "G04", "G05"])
         ori_direccion = st.text_input("Dirección Origen:", value="Polígono Industrial Norte 5")
     with c3:
         ori_cp = st.text_input("C.P. Origen:", value="29001")
@@ -162,7 +162,7 @@ with st.form("di_form_completo"):
         des_nima = st.text_input("NIMA Destino:", value="555443322")
     with c2:
         des_inscripcion = st.text_input("Nº Inscripción Destino:", value="DES-003")
-        des_tipo = st.text_input("Tipo Destino:", value="Planta Valorización")
+        des_tipo = st.selectbox("Tipo Destino:", ["G04", "G05"])
         des_direccion = st.text_input("Dirección Destino:", value="Carretera Nacional Km 5")
     with c3:
         des_cp = st.text_input("C.P. Destino:", value="29002")
@@ -195,8 +195,8 @@ with st.form("di_form_completo"):
         trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="Transportes Rápidos S.L.")
         trans_nima = st.text_input("NIMA Transportista:", value="112233445")
     with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción / Autorización:", value="TRA-004-AND")
-        trans_tipo = st.text_input("Tipo Transportista:", value="Transportista Profesional")
+        trans_inscripcion = st.text_input("Nº Inscripción / Autorización:", value="")
+        trans_tipo = st.selectbox("Tipo Transportista:", ["T02", "T01", "T03"], index=0)
         trans_direccion = st.text_input("Dirección Transportista:", value="Av. Logística 8, Málaga")
     with c3:
         trans_conductor = st.text_input("Conductor:", value="Juan Pérez")
@@ -206,15 +206,15 @@ with st.form("di_form_completo"):
 
     st.markdown("---")
 
-    # 7. ACEPTACIÓN DEL RESIDUO
+    # 7. ACEPTACIÓN DEL RESIDUO (EN BLANCO POR DEFECTO)
     st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
     c1, c2, c3 = st.columns(3)
     with c1:
-        fecha_entrega = st.text_input("Fecha Entrega:", value=ahora_espana.strftime("%d/%m/%Y"))
-        kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="2500")
+        fecha_entrega = st.text_input("Fecha Entrega:", value="")
+        kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="")
     with c2:
-        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value=ahora_espana.strftime("%d/%m/%Y"))
-        aceptacion_estado = st.selectbox("Aceptación:", ["Sí", "No"])
+        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value="")
+        aceptacion_estado = st.selectbox("Aceptación:", ["", "Sí", "No"], index=0)
     with c3:
         motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
 
