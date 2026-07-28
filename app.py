@@ -19,22 +19,12 @@ st.set_page_config(
 def generar_numero_di(nima_operador: str) -> str:
     """Genera automáticamente el Nº DI con el criterio:
     [NIMA 10 dígitos] + [Año 4 dígitos] + [Contador 7 dígitos (MMDDHHM)]
-    
-    Ejemplo para NIMA '123456789' el 28 de Julio a las 08:05:
-    -> 0123456789 (NIMA 10d) + 2026 (Año 4d) + 0728085 (MMDDHH + 1er dígito minuto)
     """
     ahora = datetime.now()
-    
-    # 1. NIMA a 10 dígitos (relleno con ceros a la izquierda si tiene menos)
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
-    
-    # 2. Año (4 dígitos)
     anio = ahora.strftime("%Y")
-    
-    # 3. Contador 7 dígitos: Mes(2) + Día(2) + Hora(2) + 1er dígito del Minuto(1)
     contador_7 = ahora.strftime("%m%d%H") + ahora.strftime("%M")[0]
-    
     return f"{nima_10}{anio}{contador_7}"
 
 
@@ -63,15 +53,12 @@ if "doc" in st.query_params:
         st.markdown("---")
         st.subheader("📄 Vista previa del documento:")
 
-        # Visor incrustado para ver el PDF en pantalla desde el móvil
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
 
     else:
-        st.error(
-            "❌ El documento no se encuentra en el servidor. Verifica que haya sido generado correctamente."
-        )
+        st.error("❌ El documento no se encuentra en el servidor. Verifica que haya sido generado correctamente.")
 
     st.markdown("---")
     if st.button("⬅️ Volver a la aplicación principal"):
@@ -85,15 +72,12 @@ if "doc" in st.query_params:
 # 2. MODO FORMULARIO (Creación del documento)
 # ==========================================
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
-st.write(
-    "Rellena las secciones para generar el PDF oficial y volcar el registro en Excel."
-)
+st.write("Rellena las secciones para generar el PDF oficial y volcar el registro completo en Excel.")
 
-# Configuración básica de URL
-st.info("💡 **Configuración del QR**: Introduce el enlace público de tu app sin barra al final.")
+# Enlace base configurado con tu subdominio real
 url_base = st.text_input(
     "🌐 URL Base de la Aplicación:",
-    value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app",
+    value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app"
 )
 
 with st.form("di_form_completo"):
@@ -114,17 +98,13 @@ with st.form("di_form_completo"):
         op_telefono = st.text_input("Teléfono Operador:", value="952000000")
         op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
 
-    # Calculamos el Nº de DI automáticamente según el NIMA introducido
+    # Autogeneración dinámica del Nº DI
     di_sugerido = generar_numero_di(op_nima)
 
     st.markdown("---")
     col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
-        di_num = st.text_input(
-            "🆔 Nº Documento de Identificación (Autogenerado):",
-            value=di_sugerido,
-            help="Formato: NIMA (10d) + Año (4d) + Fecha/Hora (7d)",
-        )
+        di_num = st.text_input("🆔 Nº Documento (Autogenerado):", value=di_sugerido)
     with col_d2:
         fecha_inicio = st.text_input("Fecha inicio traslado:", value=datetime.now().strftime("%d/%m/%Y"))
     with col_d3:
@@ -176,7 +156,7 @@ with st.form("di_form_completo"):
     with c2:
         operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="R13")
         operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="R1301")
-        desc_operacion = st.text_input("Descripción Operación Tratamiento:", value="Acumulación de residuos previa a valorización")
+        desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="Acumulación de residuos previa a valorización")
 
     st.markdown("---")
     st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
@@ -211,7 +191,7 @@ with st.form("di_form_completo"):
 
 
 # ==========================================
-# PROCESAMIENTO
+# PROCESAMIENTO TRAS PULSAR EL BOTÓN
 # ==========================================
 if btn_generar:
     if not di_num:
@@ -239,7 +219,7 @@ if btn_generar:
         # Dibujar QR (esquina superior derecha)
         pdf.image(qr_path, x=150, y=10, w=50, h=50)
 
-        # Cabecera
+        # Cabecera PDF
         pdf.set_font("Arial", "B", 10)
         pdf.cell(135, 6, s("DOCUMENTO DE IDENTIFICACIÓN DE RESIDUOS Y CARTA DE PORTE"), border=0, ln=True)
         pdf.ln(2)
@@ -350,141 +330,39 @@ if btn_generar:
         with open(pdf_out_path, "rb") as f:
             pdf_bytes = f.read()
 
-        # 3. Guardar en Excel
-       excel_path = "registro_documentos.xlsx"
+        # 3. Guardar en Excel con TODOS los datos
+        excel_path = "registro_documentos.xlsx"
 
         columnas_excel = [
-            # Datos Generales y Operador
-            "Nº DI",
-            "Fecha Inicio Traslado",
-            "Hora Inicio",
-            "NIF Operador",
-            "Razón Social Operador",
-            "NIMA Operador",
-            "Nº Inscripción Operador",
-            "Tipo Operador",
-            "Dirección Operador",
-            "CP Operador",
-            "Municipio Operador",
-            "Provincia Operador",
-            "Teléfono Operador",
-            "Email Operador",
-            # Origen
-            "NIF Origen",
-            "Razón Social Origen",
-            "NIMA Origen",
-            "Nº Inscripción Origen",
-            "Tipo Origen",
-            "Dirección Origen",
-            "CP Origen",
-            "Municipio Origen",
-            "Provincia Origen",
-            "Teléfono Origen",
-            "Email Origen",
-            # Destino
-            "NIF Destino",
-            "Razón Social Destino",
-            "NIMA Destino",
-            "Nº Inscripción Destino",
-            "Tipo Destino",
-            "Dirección Destino",
-            "CP Destino",
-            "Municipio Destino",
-            "Provincia Destino",
-            "Teléfono Destino",
-            "Email Destino",
-            # Residuo
-            "Código LER",
-            "Descripción Residuo",
-            "Cantidad (kg)",
-            "Op. Tratamiento Destino",
-            "Op. Tratamiento Desagregada",
-            "Descripción Op. Tratamiento",
-            # Transportista
-            "NIF Transportista",
-            "Razón Social Transportista",
-            "NIMA Transportista",
-            "Nº Inscripción Transportista",
-            "Tipo Transportista",
-            "Dirección Transportista",
-            "Conductor",
-            "Matrícula / Vehículo",
-            "Teléfono Transportista",
-            "Email Transportista",
-            # Aceptación
-            "Fecha Entrega",
-            "Kg Netos Recibidos",
-            "Fecha Aceptación/Rechazo",
-            "Estado Aceptación",
-            "Motivo Rechazo",
-            "Enlace QR Verificación",
+            "Nº DI", "Fecha Inicio Traslado", "Hora Inicio", "NIF Operador", "Razón Social Operador",
+            "NIMA Operador", "Nº Inscripción Operador", "Tipo Operador", "Dirección Operador", "CP Operador",
+            "Municipio Operador", "Provincia Operador", "Teléfono Operador", "Email Operador",
+            "NIF Origen", "Razón Social Origen", "NIMA Origen", "Nº Inscripción Origen", "Tipo Origen",
+            "Dirección Origen", "CP Origen", "Municipio Origen", "Provincia Origen", "Teléfono Origen",
+            "Email Origen", "NIF Destino", "Razón Social Destino", "NIMA Destino", "Nº Inscripción Destino",
+            "Tipo Destino", "Dirección Destino", "CP Destino", "Municipio Destino", "Provincia Destino",
+            "Teléfono Destino", "Email Destino", "Código LER", "Descripción Residuo", "Cantidad (kg)",
+            "Op. Tratamiento Destino", "Op. Tratamiento Desagregada", "Descripción Op. Tratamiento",
+            "NIF Transportista", "Razón Social Transportista", "NIMA Transportista", "Nº Inscripción Transportista",
+            "Tipo Transportista", "Dirección Transportista", "Conductor", "Matrícula / Vehículo",
+            "Teléfono Transportista", "Email Transportista", "Fecha Entrega", "Kg Netos Recibidos",
+            "Fecha Aceptación/Rechazo", "Estado Aceptación", "Motivo Rechazo", "Enlace QR Verificación"
         ]
 
         fila_datos = [
-            # Datos Generales y Operador
-            di_num,
-            fecha_inicio,
-            hora_inicio,
-            op_nif,
-            op_nombre,
-            op_nima,
-            op_inscripcion,
-            op_tipo,
-            op_direccion,
-            op_cp,
-            op_muni,
-            op_prov,
-            op_telefono,
-            op_email,
-            # Origen
-            ori_nif,
-            ori_nombre,
-            ori_nima,
-            ori_inscripcion,
-            ori_tipo,
-            ori_direccion,
-            ori_cp,
-            ori_muni,
-            ori_prov,
-            ori_telefono,
-            ori_email,
-            # Destino
-            des_nif,
-            des_nombre,
-            des_nima,
-            des_inscripcion,
-            des_tipo,
-            des_direccion,
-            des_cp,
-            des_muni,
-            des_prov,
-            des_telefono,
-            des_email,
-            # Residuo
-            ler,
-            desc_residuo,
-            cantidad_kg,
-            operacion_tratam,
-            operacion_desagregada,
-            desc_operacion,
-            # Transportista
-            trans_nif,
-            trans_nombre,
-            trans_nima,
-            trans_inscripcion,
-            trans_tipo,
-            trans_direccion,
-            trans_conductor,
-            trans_matricula,
-            trans_telefono,
-            trans_email,
-            # Aceptación
-            fecha_entrega,
-            kg_recibidos,
-            fecha_aceptacion,
-            aceptacion_estado,
-            motivo_rechazo,
-            enlace_qr,
+            di_num, fecha_inicio, hora_inicio, op_nif, op_nombre,
+            op_nima, op_inscripcion, op_tipo, op_direccion, op_cp,
+            op_muni, op_prov, op_telefono, op_email,
+            ori_nif, ori_nombre, ori_nima, ori_inscripcion, ori_tipo,
+            ori_direccion, ori_cp, ori_muni, ori_prov, ori_telefono,
+            ori_email, des_nif, des_nombre, des_nima, des_inscripcion,
+            des_tipo, des_direccion, des_cp, des_muni, des_prov,
+            des_telefono, des_email, ler, desc_residuo, cantidad_kg,
+            operacion_tratam, operacion_desagregada, desc_operacion,
+            trans_nif, trans_nombre, trans_nima, trans_inscripcion,
+            trans_tipo, trans_direccion, trans_conductor, trans_matricula,
+            trans_telefono, trans_email, fecha_entrega, kg_recibidos,
+            fecha_aceptacion, aceptacion_estado, motivo_rechazo, enlace_qr
         ]
 
         if not os.path.exists(excel_path):
@@ -498,3 +376,27 @@ if btn_generar:
 
         ws.append(fila_datos)
         wb.save(excel_path)
+
+        st.success(f"✅ Documento generado y registrado correctamente: **{di_num}**")
+
+        col_a, col_b = st.columns([1, 3])
+        with col_a:
+            st.image(qr_path, caption="Código QR", width=150)
+        with col_b:
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                st.download_button(
+                    label="📄 Descargar PDF Oficial",
+                    data=pdf_bytes,
+                    file_name=f"DI_{di_num}.pdf",
+                    mime="application/pdf",
+                )
+            with col_btn2:
+                with open(excel_path, "rb") as f_excel:
+                    st.download_button(
+                        label="📊 Descargar Registro Excel",
+                        data=f_excel,
+                        file_name="registro_documentos.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+            st.code(f"URL del QR: {enlace_qr}", language="text")
