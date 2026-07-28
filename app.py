@@ -13,6 +13,27 @@ st.set_page_config(
     layout="wide",
 )
 
+EXCEL_PATH = "registro_documentos.xlsx"
+
+# ==========================================
+# BARRA LATERAL (Acceso constante al Excel)
+# ==========================================
+with st.sidebar:
+    st.header("📊 Gestión de Registros")
+    st.write("Descarga la base de datos completa de documentos generados:")
+    
+    if os.path.exists(EXCEL_PATH):
+        with open(EXCEL_PATH, "rb") as f_excel:
+            st.download_button(
+                label="📥 Descargar Registro Excel Completo",
+                data=f_excel,
+                file_name="registro_documentos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    else:
+        st.info("ℹ️ Aún no hay registros guardados. Genera el primer documento para crear el Excel.")
+
 # ==========================================
 # FUNCIONES AUXILIARES
 # ==========================================
@@ -23,7 +44,7 @@ def generar_numero_di(nima_operador: str) -> str:
     ahora = datetime.now()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
-    anio = ahora.strftime("%Y")
+    anio = me = ahora.strftime("%Y")
     contador_7 = ahora.strftime("%m%d%H") + ahora.strftime("%M")[0]
     return f"{nima_10}{anio}{contador_7}"
 
@@ -331,8 +352,6 @@ if btn_generar:
             pdf_bytes = f.read()
 
         # 3. Guardar en Excel con TODOS los datos
-        excel_path = "registro_documentos.xlsx"
-
         columnas_excel = [
             "Nº DI", "Fecha Inicio Traslado", "Hora Inicio", "NIF Operador", "Razón Social Operador",
             "NIMA Operador", "Nº Inscripción Operador", "Tipo Operador", "Dirección Operador", "CP Operador",
@@ -365,17 +384,17 @@ if btn_generar:
             fecha_aceptacion, aceptacion_estado, motivo_rechazo, enlace_qr
         ]
 
-        if not os.path.exists(excel_path):
+        if not os.path.exists(EXCEL_PATH):
             wb = Workbook()
             ws = wb.active
             ws.title = "Registros DI"
             ws.append(columnas_excel)
         else:
-            wb = load_workbook(excel_path)
+            wb = load_workbook(EXCEL_PATH)
             ws = wb.active
 
         ws.append(fila_datos)
-        wb.save(excel_path)
+        wb.save(EXCEL_PATH)
 
         st.success(f"✅ Documento generado y registrado correctamente: **{di_num}**")
 
@@ -392,7 +411,7 @@ if btn_generar:
                     mime="application/pdf",
                 )
             with col_btn2:
-                with open(excel_path, "rb") as f_excel:
+                with open(EXCEL_PATH, "rb") as f_excel:
                     st.download_button(
                         label="📊 Descargar Registro Excel",
                         data=f_excel,
@@ -400,3 +419,5 @@ if btn_generar:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
             st.code(f"URL del QR: {enlace_qr}", language="text")
+            
+        st.rerun()  # Recarga rápida para actualizar el botón de la barra lateral
