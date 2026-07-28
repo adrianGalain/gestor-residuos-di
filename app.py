@@ -3,14 +3,13 @@ from datetime import datetime
 import io
 import os
 import re
-import unicodedata
 import qrcode
 import streamlit as st
 import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# Configuración inicial de Streamlit
+# Configuración inicial
 st.set_page_config(
     page_title="Documento de Identificación (DI) - Residuos",
     page_icon="🚛",
@@ -22,23 +21,7 @@ EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
-# --- FUNCIONES DE NORMALIZACIÓN ---
-def normalizar_texto(texto: str) -> str:
-    """Convierte texto a minúsculas, elimina tildes, diacríticos y caracteres especiales."""
-    if not texto:
-        return ""
-    texto = str(texto).lower().strip()
-    texto = unicodedata.normalize('NFD', texto)
-    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
-    return re.sub(r'[^a-z0-9]', '', texto)
-
-def normalizar_ler(codigo: str) -> str:
-    """Extrae únicamente los dígitos numéricos de un código LER para comparación exacta."""
-    if not codigo:
-        return ""
-    return re.sub(r'\D', '', str(codigo))
-
-# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS ---
+# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP ---
 LISTA_PROVINCIAS = [
     "", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona",
     "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "A Coruña",
@@ -49,6 +32,7 @@ LISTA_PROVINCIAS = [
     "Zamora", "Zaragoza", "Ceuta", "Melilla"
 ]
 
+# Prefijos de Código Postal por Provincia
 PREFIJOS_CP = {
     "Álava": "01", "Albacete": "02", "Alicante": "03", "Almería": "04", "Ávila": "05",
     "Badajoz": "06", "Illes Balears": "07", "Barcelona": "08", "Burgos": "09", "Cáceres": "10",
@@ -62,22 +46,15 @@ PREFIJOS_CP = {
     "Bizkaia": "48", "Zamora": "49", "Zaragoza": "50", "Ceuta": "51", "Melilla": "52"
 }
 
+# Municipios de referencia
 MUNICIPIOS_POR_PROVINCIA = {
-    "Almería": ["Almería", "Roquetas de Mar", "El Ejido", "Níjar", "Vícar", "Adra", "Huércal de Almería"],
-    "Cádiz": ["Cádiz", "Jerez de la Frontera", "Algeciras", "San Fernando", "El Puerto de Santa María", "Chiclana de la Frontera"],
-    "Córdoba": ["Córdoba", "Lucena", "Puente Genil", "Montilla", "Priego de Córdoba"],
     "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
-    "Huelva": ["Huelva", "Lepe", "Almonte", "Moguer", "Ayamonte"],
-    "Jaén": ["Jaén", "Linares", "Andújar", "Úbeda", "Martos"],
     "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
     "Sevilla": ["Sevilla", "Dos Hermanas", "Alcalá de Guadaíra", "Utrera", "Ecija", "Mairena del Aljarafe"],
     "Madrid": ["Madrid", "Móstoles", "Alcalá de Henares", "Fuenlabrada", "Leganés", "Getafe", "Alcorcón"],
     "Barcelona": ["Barcelona", "L'Hospitalet de Llobregat", "Badalona", "Terrassa", "Sabadell", "Mataró"],
-    "Valencia": ["Valencia", "Torrent", "Gandia", "Paterna", "Sagunto"]
+    "Valencia": ["Valencia", "Torrent", "Gandia", "Paterna", "Sagunto"],
 }
-
-# Mapas Canónicos para búsqueda flexible de Provincia/Municipio sin tildes
-MAPA_PROVINCIAS_CANONICO = {normalizar_texto(p): p for p in LISTA_PROVINCIAS if p}
 
 # --- FUNCIONES DE VALIDACIÓN ---
 def validar_nif_cif_nie(documento: str) -> bool:
@@ -185,7 +162,7 @@ with col_d3:
 
 st.markdown("---")
 
-# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO CON NORMALIZACIÓN
+# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO
 def selector_ubicacion(prefix_key: str, label_titulo: str):
     col1, col2, col3 = st.columns(3)
     
@@ -295,37 +272,10 @@ st.markdown("---")
 # 5. INFORMACIÓN SOBRE EL RESIDUO
 st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
 c1, c2 = st.columns(2)
-
-options_ler = [""] + [item["codigo"] for item in BASE_DATOS_LER] + ["OTRO"]
-
 with c1:
-    ler_seleccionado = st.selectbox(
-        "Seleccione o Busque Código LER (SIRA):",
-        options=options_ler,
-        format_func=lambda x: f"{x} - {DICCIONARIO_LER[x]}" if x and x != "OTRO" else ("Otro código LER (Entrada libre)" if x == "OTRO" else "Seleccionar LER..."),
-        key="ler_select"
-    )
-
-    if ler_seleccionado == "OTRO":
-        ler_input_libre = st.text_input("Ingrese Código LER (Ej: 16 06 01, 160601 o 16 06 01*):", value="", placeholder="Ej: 160601")
-        
-        # Búsqueda/Normalización automática del código ingresado manualmente
-        canon_input = normalizar_ler(ler_input_libre)
-        if canon_input in MAPA_LER_CANONICO:
-            codigo_std, desc_std = MAPA_LER_CANONICO[canon_input]
-            ler = codigo_std
-            desc_sugerida = desc_std
-            st.info(f"💡 Reconocido automáticamente como: **{codigo_std}**")
-        else:
-            ler = ler_input_libre
-            desc_sugerida = ""
-    else:
-        ler = ler_seleccionado
-        desc_sugerida = DICCIONARIO_LER.get(ler_seleccionado, "")
-
-    desc_residuo = st.text_area("Descripción del residuo:", value=desc_sugerida)
+    ler = st.text_input("Código LER:", value="")
+    desc_residuo = st.text_area("Descripción del residuo:", value="")
     cantidad_kg = st.text_input("Cantidad (kg):", value="")
-
 with c2:
     operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="")
     operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="")
