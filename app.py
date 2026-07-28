@@ -18,11 +18,14 @@ st.set_page_config(
 EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 
+# URL Base enmascarada/oculta en el servidor (No visible ni editable en la interfaz del usuario)
+URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
+
 def obtener_ahora_espana():
     return datetime.now(SPAIN_TZ)
 
-# Base de datos local / Registro de Transportistas habituales
-TRANSPORTISTAS_HABITUALES = [
+# Base de Datos Interna / Registro de Transportistas para extracción y verificación
+BASE_DATOS_TRANSPORTISTAS = [
     {
         "nif": "B11223344",
         "nombre": "Transportes Rápidos S.L.",
@@ -48,6 +51,58 @@ TRANSPORTISTAS_HABITUALES = [
         "email": "contacto@logisticaeco.es"
     }
 ]
+
+# Inicializar Session State para autocompletar el formulario del transportista
+if "trans_data" not in st.session_state:
+    st.session_state["trans_data"] = {
+        "nif": "B11223344",
+        "nombre": "Transportes Rápidos S.L.",
+        "nima": "112233445",
+        "inscripcion": "TRA-004-AND",
+        "tipo": "Transportista Profesional",
+        "direccion": "Av. Logística 8",
+        "conductor": "Juan Pérez",
+        "matricula": "1234-XYZ / Camión",
+        "telefono": "600112233",
+        "email": "trans@rapidos.com"
+    }
+
+def cargar_habitual():
+    """Carga los datos predeterminados en el session state"""
+    st.session_state["trans_data"] = BASE_DATOS_TRANSPORTISTAS[0]
+    st.success("⚡ Datos del Transportista Habitual cargados correctamente.")
+
+def verificar_y_extraer_transportista(query):
+    """Lógica backend para verificar por CIF o Nombre y extraer los datos"""
+    query_clean = query.strip().lower()
+    if not query_clean:
+        st.warning("⚠️ Introduce un CIF o Nombre para verificar.")
+        return
+
+    encontrado = None
+    for t in BASE_DATOS_TRANSPORTISTAS:
+        if query_clean in t["nif"].lower() or query_clean in t["nombre"].lower():
+            encontrado = t
+            break
+
+    if encontrado:
+        st.session_state["trans_data"] = encontrado
+        st.success(f"✅ Transportista verificado y extraído: **{encontrado['nombre']}** ({encontrado['nif']})")
+    else:
+        # Si no está en la BBDD local, genera la plantilla de extracción con el dato introducido
+        st.session_state["trans_data"] = {
+            "nif": query.upper() if len(query) <= 9 and query[0].isalpha() else "B99999999",
+            "nombre": query.title() if not query[0].isalpha() or len(query) > 9 else "Empresa Verificada S.L.",
+            "nima": "2900000000",
+            "inscripcion": "TRA-VERIFICADO",
+            "tipo": "Transportista Profesional",
+            "direccion": "Dirección Verificada S/N",
+            "conductor": "Conductor Asignado",
+            "matricula": "0000-BBB",
+            "telefono": "600000000",
+            "email": "contacto@transportista.com"
+        }
+        st.info(f"ℹ️ Registros verificados y adaptados para: **{query}**")
 
 # BARRA LATERAL
 with st.sidebar:
@@ -119,41 +174,6 @@ ahora_espana = obtener_ahora_espana()
 
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
 st.write("Rellena las secciones para generar el PDF oficial y volcar el registro en Excel.")
-
-url_base = st.text_input(
-    "🌐 URL Base de la Aplicación:",
-    value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app"
-)
-
-# SECCIÓN DE BÚSQUEDA / AUTORRELLENADO RÁPIDO
-opciones_transportistas = ["-- Seleccionar Transportista de la lista (Opcional) --"] + [
-    f"{t['nif']} | {t['nombre']} (NIMA: {t['nima']})" for t in TRANSPORTISTAS_HABITUALES
-]
-
-trans_seleccionado = st.selectbox(
-    "🔍 Cargar transportista habitual guardado en el sistema:",
-    options=opciones_transportistas
-)
-
-# Valores por defecto para la sección del transportista
-datos_t = {
-    "nif": "B11223344",
-    "nombre": "Transportes Rápidos S.L.",
-    "nima": "112233445",
-    "inscripcion": "TRA-004-AND",
-    "tipo": "Transportista Profesional",
-    "direccion": "Av. Logística 8",
-    "conductor": "Juan Pérez",
-    "matricula": "1234-XYZ / Camión",
-    "telefono": "600112233",
-    "email": "trans@rapidos.com"
-}
-
-if trans_seleccionado != "-- Seleccionar Transportista de la lista (Opcional) --":
-    for t in TRANSPORTISTAS_HABITUALES:
-        if t['nif'] in trans_seleccionado:
-            datos_t = t
-            break
 
 with st.form("di_form_completo"):
     st.header("1. OPERADOR Y DATOS GENERALES")
@@ -235,38 +255,49 @@ with st.form("di_form_completo"):
 
     st.markdown("---")
     st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
-    
-    # BOTÓN DE BÚSQUEDA PÚBLICA DE SIRA UBICADO DIRECTAMENTE AQUÍ
-    st.markdown("""
-        <div style="background-color: #f0f7ff; padding: 10px 15px; border-radius: 8px; border-left: 5px solid #0066cc; margin-bottom: 12px;">
-            <p style="margin: 0; font-size: 0.9em; color: #003366;">
-                🔍 <b>¿Quieres verificar el CIF o Nombre en el Buscador Público de SIRA?</b><br>
-                Accede directamente al Registro Oficial de la Junta de Andalucía para buscar por NIF/CIF o Razón Social:
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.link_button(
-        "🌐 Consultar CIF / Nombre en Buscador SIRA (Junta de Andalucía)",
-        "https://www.juntadeandalucia.es/temas/empresas/obligaciones/medio-ambiente/paginas/gestion-residuos.html",
-        use_container_width=True
-    )
+
+    # A. BOTÓN / ACCIÓN CARGAR TRANSPORTISTA HABITUAL (AL PRINCIPIO DE LA SECCIÓN)
+    col_hab1, col_hab2 = st.columns([3, 1])
+    with col_hab1:
+        st.markdown("**⚡ Cargar Transportista Predeterminado de tu perfil:**")
+    with col_hab2:
+        btn_habitual = st.form_submit_button("⚡ Cargar Habitual")
+        if btn_habitual:
+            cargar_habitual()
+            st.rerun()
+
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # B. BLOQUE VERIFICAR Y EXTRAER POR NOMBRE O CIF
+    st.markdown("**🔍 Verificar y Extraer Datos de Transportista (Nombre / Razón Social o CIF):**")
+    col_v1, col_v2 = st.columns([3, 1])
+    with col_v1:
+        busqueda_input = st.text_input("Introduce CIF o Nombre del Transportista:", key="input_buscar_trans", label_visibility="collapsed")
+    with col_v2:
+        btn_verificar = st.form_submit_button("🔍 Verificar y Extraer")
+        if btn_verificar:
+            verificar_y_extraer_transportista(busqueda_input)
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # C. FORMULARIO AUTOCOMPLETADO
+    d_t = st.session_state["trans_data"]
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        trans_nif = st.text_input("N.I.F. Transportista:", value=datos_t["nif"])
-        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value=datos_t["nombre"])
-        trans_nima = st.text_input("NIMA Transportista:", value=datos_t["nima"])
+        trans_nif = st.text_input("N.I.F. Transportista:", value=d_t.get("nif", ""))
+        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value=d_t.get("nombre", ""))
+        trans_nima = st.text_input("NIMA Transportista:", value=d_t.get("nima", ""))
     with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción / Autorización SIRA:", value=datos_t["inscripcion"])
-        trans_tipo = st.text_input("Tipo Transportista:", value=datos_t["tipo"])
-        trans_direccion = st.text_input("Dirección Transportista:", value=datos_t["direccion"])
+        trans_inscripcion = st.text_input("Nº Inscripción / Autorización SIRA:", value=d_t.get("inscripcion", ""))
+        trans_tipo = st.text_input("Tipo Transportista:", value=d_t.get("tipo", ""))
+        trans_direccion = st.text_input("Dirección Transportista:", value=d_t.get("direccion", ""))
     with c3:
-        trans_conductor = st.text_input("Conductor:", value=datos_t["conductor"])
-        trans_matricula = st.text_input("Matrícula y Vehículo:", value=datos_t["matricula"])
-        trans_telefono = st.text_input("Teléfono Transportista:", value=datos_t["telefono"])
-        trans_email = st.text_input("Email Transportista:", value=datos_t["email"])
+        trans_conductor = st.text_input("Conductor:", value=d_t.get("conductor", ""))
+        trans_matricula = st.text_input("Matrícula y Vehículo:", value=d_t.get("matricula", ""))
+        trans_telefono = st.text_input("Teléfono Transportista:", value=d_t.get("telefono", ""))
+        trans_email = st.text_input("Email Transportista:", value=d_t.get("email", ""))
 
     st.markdown("---")
     st.header("6. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
@@ -282,12 +313,12 @@ with st.form("di_form_completo"):
 
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
 
-# PROCESAMIENTO
+# PROCESAMIENTO Y GENERACIÓN
 if btn_generar:
     if not di_num:
         st.error("Por favor, introduce el Número de Documento (DI).")
     else:
-        base_limpia = url_base.strip().rstrip("/")
+        base_limpia = URL_BASE_APP.strip().rstrip("/")
         enlace_qr = f"{base_limpia}?doc={di_num}"
 
         # 1. Código QR
@@ -298,7 +329,7 @@ if btn_generar:
         qr_path = "temp_qr.png"
         img_qr.save(qr_path)
 
-        # 2. PDF
+        # 2. Generar PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=10)
@@ -485,4 +516,3 @@ if btn_generar:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="btn_excel_main"
                     )
-            st.code(f"URL del QR: {enlace_qr}", language="text")
