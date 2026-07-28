@@ -2,13 +2,14 @@ import base64
 from datetime import datetime
 import io
 import os
+import re
 import qrcode
 import streamlit as st
 import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# Configuración inicial de la página (optimizada para móviles)
+# Configuración inicial
 st.set_page_config(
     page_title="Documento de Identificación (DI) - Residuos",
     page_icon="🚛",
@@ -18,9 +19,49 @@ st.set_page_config(
 
 EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
-
-# URL Base oculta en el servidor para generar los QR de verificación
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
+
+# Mapeo de los 2 primeros dígitos del CP a Provincias de España
+PROVINCIAS_CP = {
+    "01": "Araba/Álava", "02": "Albacete", "03": "Alicante/Alacant", "04": "Almería", "05": "Ávila",
+    "06": "Badajoz", "07": "Balears, Illes", "08": "Barcelona", "09": "Burgos", "10": "Cáceres",
+    "11": "Cádiz", "12": "Castellón/Castelló", "13": "Ciudad Real", "14": "Córdoba", "15": "A Coruña",
+    "16": "Cuenca", "17": "Girona", "18": "Granada", "19": "Guadalajara", "20": "Gipuzkoa",
+    "21": "Huelva", "22": "Huesca", "23": "Jaén", "24": "León", "25": "Lleida", "26": "La Rioja",
+    "27": "Lugo", "28": "Madrid", "29": "Málaga", "30": "Murcia", "31": "Navarra", "32": "Ourense",
+    "33": "Asturias", "34": "Palencia", "35": "Las Palmas", "36": "Pontevedra", "37": "Salamanca",
+    "38": "Santa Cruz de Tenerife", "39": "Cantabria", "40": "Segovia", "41": "Sevilla", "42": "Soria",
+    "43": "Tarragona", "44": "Teruel", "45": "Toledo", "46": "Valencia/València", "47": "Valladolid",
+    "48": "Bizkaia", "49": "Zamora", "50": "Zaragoza", "51": "Ceuta", "52": "Melilla"
+}
+
+def obtener_provincia_por_cp(cp: str) -> str:
+    cp_clean = cp.strip()
+    if len(cp_clean) == 5 and cp_clean.isdigit():
+        prefijo = cp_clean[:2]
+        return PROVINCIAS_CP.get(prefijo, "")
+    return ""
+
+# --- FUNCIONES DE VALIDACIÓN ---
+def validar_nif_cif_nie(documento: str) -> bool:
+    doc = documento.strip().upper()
+    if not doc:
+        return True  # Si está vacío lo evalúa el control de obligatorios
+    # Regex general para NIF (8 dígitos + letra), NIE (X/Y/Z + 7 dígitos + letra), CIF (Letra + 7 dígitos + letra/número)
+    pattern = r'^([ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]|[XYZ]\d{7}[A-Z]|\d{8}[A-Z])$'
+    return bool(re.match(pattern, doc))
+
+def validar_cp(cp: str) -> bool:
+    cp_clean = cp.strip()
+    if not cp_clean:
+        return True
+    return len(cp_clean) == 5 and cp_clean.isdigit()
+
+def validar_nima(nima: str) -> bool:
+    nima_clean = nima.strip()
+    if not nima_clean:
+        return True
+    return len(nima_clean) == 10 and nima_clean.isdigit()
 
 def obtener_ahora_espana():
     return datetime.now(SPAIN_TZ)
@@ -39,42 +80,19 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     ahora = obtener_ahora_espana()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
-    anio = me = ahora.strftime("%Y")
+    anio = ahora.strftime("%Y")
     correlativo_str = str(correlativo).zfill(3)
     return f"{nima_10}{anio}{correlativo_str}"
 
-# --- OPCIONES DE DESPLEGABLES CON DESCRIPCIÓN COMPLETA ---
-OPCIONES_OPERADOR = [
-    "A02 (Agente RNP)",
-    "P03 (Productor > 1000 Tn RNP)",
-    "P04 (Productor < 1000 Tn RNP)",
-    "G04 (Gestor RNP)",
-    "G05 (Gestor Intermedio RNP)",
-    "P05 (Poseedor)"
-]
-
-OPCIONES_ORIGEN = [
-    "P03 (Productor > 1000 Tn RNP)",
-    "P04 (Productor < 1000 Tn RNP)",
-    "G04 (Gestor RNP)",
-    "G05 (Gestor Intermedio RNP)",
-    "P05 (Poseedor)"
-]
-
-OPCIONES_DESTINO = [
-    "G04 (Gestor RNP)",
-    "G05 (Gestor Intermedio RNP)"
-]
-
-OPCIONES_TRANSPORTISTA = [
-    "T02 (Transportista RNP)"
-]
+# OPCIONES
+OPCIONES_OPERADOR = ["A02", "P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
+OPCIONES_ORIGEN = ["P03 (Productor > 1000 Tn RNP)", "P04 (Productor < 1000 Tn RNP)", "G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
+OPCIONES_DESTINO = ["G04 (Gestor RNP)", "G05 (Gestor Intermedio RNP)"]
+OPCIONES_TRANSPORTISTA = ["T02 (Transportista RNP)", "T01", "T03"]
 
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("📊 Gestión de Registros")
-    st.write("Descarga la base de datos completa de documentos generados:")
-
     if os.path.exists(EXCEL_PATH):
         with open(EXCEL_PATH, "rb") as f_excel:
             st.download_button(
@@ -88,7 +106,7 @@ with st.sidebar:
     else:
         st.info("ℹ️ Aún no hay registros guardados.")
 
-# --- MODO VISOR (ACCESO DESDE CÓDIGO QR) ---
+# --- MODO VISOR QR ---
 if "doc" in st.query_params:
     doc_id = st.query_params["doc"]
     st.title(f"🔎 Verificación de Documento: {doc_id}")
@@ -99,13 +117,7 @@ if "doc" in st.query_params:
         with open(pdf_filename, "rb") as f:
             pdf_bytes = f.read()
 
-        st.download_button(
-            label="📥 Descargar Documento PDF Oficial",
-            data=pdf_bytes,
-            file_name=pdf_filename,
-            mime="application/pdf",
-            key="btn_visor_pdf"
-        )
+        st.download_button("📥 Descargar Documento PDF Oficial", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf", key="btn_visor_pdf")
         st.markdown("---")
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
         st.markdown(f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>', unsafe_allow_html=True)
@@ -117,148 +129,172 @@ if "doc" in st.query_params:
         st.rerun()
     st.stop()
 
-# --- MODO FORMULARIO PRINCIPAL ---
+# --- FORMULARIO PRINCIPAL ---
 ahora_espana = obtener_ahora_espana()
-
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
 st.write("Rellena las secciones para generar el PDF oficial y volcar el registro en Excel.")
 
-with st.form("di_form_completo"):
+# 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA
+st.header("1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA")
+siguiente_correlativo = obtener_siguiente_correlativo()
+di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
 
-    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA
-    siguiente_correlativo = obtener_siguiente_correlativo()
-    di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
+col_d1, col_d2, col_d3 = st.columns(3)
+with col_d1:
+    di_num = st.text_input("🆔 Nº Documento (Autogenerado):", value=di_sugerido)
+with col_d2:
+    fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
+with col_d3:
+    hora_inicio = st.text_input("Hora (España):", value=ahora_espana.strftime("%H:%M"))
 
-    st.header("1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA")
-    col_d1, col_d2, col_d3 = st.columns(3)
-    with col_d1:
-        di_num = st.text_input("🆔 Nº Documento (Autogenerado):", value=di_sugerido)
-    with col_d2:
-        fecha_inicio = st.text_input("Fecha inicio traslado:", value=ahora_espana.strftime("%d/%m/%Y"))
-    with col_d3:
-        hora_inicio = st.text_input("Hora (España):", value=ahora_espana.strftime("%H:%M"))
+st.markdown("---")
 
-    st.markdown("---")
+# 2. OPERADOR DEL TRASLADO
+st.header("2. OPERADOR DEL TRASLADO")
+c_op1, c_op2, c_op3 = st.columns(3)
+with c_op1:
+    op_nif = st.text_input("NIF/CIF Operador:", value="", placeholder="Ej: B12345678")
+    op_nombre = st.text_input("Razón Social / Nombre Operador:", value="")
+    op_tipo = st.selectbox("Tipo Operador:", OPCIONES_OPERADOR)
 
-    # 2. OPERADOR DEL TRASLADO
-    st.header("2. OPERADOR DEL TRASLADO")
-    c_op1, c_op2, c_op3 = st.columns(3)
-    with c_op1:
-        op_nif = st.text_input("NIF Operador:", value="")
-        op_nombre = st.text_input("Razón Social / Nombre:", value="")
-        op_tipo = st.selectbox("Tipo Operador:", OPCIONES_OPERADOR)
-    with c_op2:
-        req_op = " *" if "P04" not in op_tipo else ""
-        op_nima = st.text_input(f"NIMA Operador{req_op}:", value="")
-        op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
-        op_direccion = st.text_input("Dirección:", value="")
-    with c_op3:
-        op_cp = st.text_input("C.P.:", value="")
-        op_muni = st.text_input("Municipio:", value="")
-        op_prov = st.text_input("Provincia:", value="")
-        op_telefono = st.text_input("Teléfono Operador:", value="")
-        op_email = st.text_input("Correo Electrónico Operador:", value="")
+req_op = " *" if "P04" not in op_tipo else ""
+with c_op2:
+    op_nima = st.text_input(f"NIMA Operador (10 dígitos){req_op}:", value="", max_chars=10, placeholder="Ej: 0123456789")
+    op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
+    op_direccion = st.text_input("Dirección Operador:", value="")
 
-    st.markdown("---")
+with c_op3:
+    op_cp = st.text_input("C.P. Operador (5 dígitos):", value="", max_chars=5, placeholder="Ej: 29001")
+    prov_auto_op = obtener_provincia_por_cp(op_cp)
+    op_muni = st.text_input("Municipio Operador:", value="")
+    op_prov = st.text_input("Provincia Operador:", value=prov_auto_op)
+    op_telefono = st.text_input("Teléfono Operador:", value="")
+    op_email = st.text_input("Correo Electrónico Operador:", value="")
 
-    # 3. ORIGEN DEL TRASLADO
-    st.header("3. ORIGEN DEL TRASLADO")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        ori_nif = st.text_input("NIF Origen:", value="")
-        ori_nombre = st.text_input("Razón Social Origen:", value="")
-        ori_tipo = st.selectbox("Tipo Origen:", OPCIONES_ORIGEN)
-    with c2:
-        req_ori = " *" if "P04" not in ori_tipo else ""
-        ori_nima = st.text_input(f"NIMA Origen{req_ori}:", value="")
-        ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
-        ori_direccion = st.text_input("Dirección Origen:", value="")
-    with c3:
-        ori_cp = st.text_input("C.P. Origen:", value="")
-        ori_muni = st.text_input("Municipio Origen:", value="")
-        ori_prov = st.text_input("Provincia Origen:", value="")
-        ori_telefono = st.text_input("Teléfono Origen:", value="")
-        ori_email = st.text_input("Email Origen:", value="")
+st.markdown("---")
 
-    st.markdown("---")
+# 3. ORIGEN DEL TRASLADO
+st.header("3. ORIGEN DEL TRASLADO")
+c1, c2, c3 = st.columns(3)
+with c1:
+    ori_nif = st.text_input("NIF/CIF Origen:", value="", placeholder="Ej: A87654321")
+    ori_nombre = st.text_input("Razón Social Origen:", value="")
+    ori_tipo = st.selectbox("Tipo Origen:", OPCIONES_ORIGEN)
 
-    # 4. DESTINO DEL TRASLADO
-    st.header("4. DESTINO DEL TRASLADO")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        des_nif = st.text_input("NIF Destino:", value="")
-        des_nombre = st.text_input("Razón Social Destino:", value="")
-        des_tipo = st.selectbox("Tipo Destino:", OPCIONES_DESTINO)
-    with c2:
-        req_des = " *" if "P04" not in des_tipo else ""
-        des_nima = st.text_input(f"NIMA Destino{req_des}:", value="")
-        des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
-        des_direccion = st.text_input("Dirección Destino:", value="")
-    with c3:
-        des_cp = st.text_input("C.P. Destino:", value="")
-        des_muni = st.text_input("Municipio Destino:", value="")
-        des_prov = st.text_input("Provincia Destino:", value="")
-        des_telefono = st.text_input("Teléfono Destino:", value="")
-        des_email = st.text_input("Email Destino:", value="")
+req_ori = " *" if "P04" not in ori_tipo else ""
+with c2:
+    ori_nima = st.text_input(f"NIMA Origen (10 dígitos){req_ori}:", value="", max_chars=10, placeholder="Ej: 0123456789")
+    ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
+    ori_direccion = st.text_input("Dirección Origen:", value="")
 
-    st.markdown("---")
+with c3:
+    ori_cp = st.text_input("C.P. Origen (5 dígitos):", value="", max_chars=5, placeholder="Ej: 41001")
+    prov_auto_ori = obtener_provincia_por_cp(ori_cp)
+    ori_muni = st.text_input("Municipio Origen:", value="")
+    ori_prov = st.text_input("Provincia Origen:", value=prov_auto_ori)
+    ori_telefono = st.text_input("Teléfono Origen:", value="")
+    ori_email = st.text_input("Email Origen:", value="")
 
-    # 5. INFORMACIÓN SOBRE EL RESIDUO
-    st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
-    c1, c2 = st.columns(2)
-    with c1:
-        ler = st.text_input("Código LER:", value="")
-        desc_residuo = st.text_area("Descripción del residuo:", value="")
-        cantidad_kg = st.text_input("Cantidad (kg):", value="")
-    with c2:
-        operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="")
-        operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="")
-        desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="")
+st.markdown("---")
 
-    st.markdown("---")
+# 4. DESTINO DEL TRASLADO
+st.header("4. DESTINO DEL TRASLADO")
+c1, c2, c3 = st.columns(3)
+with c1:
+    des_nif = st.text_input("NIF/CIF Destino:", value="", placeholder="Ej: B99887766")
+    des_nombre = st.text_input("Razón Social Destino:", value="")
+    des_tipo = st.selectbox("Tipo Destino:", OPCIONES_DESTINO)
 
-    # 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA
-    st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        trans_nif = st.text_input("N.I.F. Transportista:", value="")
-        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
-        trans_tipo = st.selectbox("Tipo Transportista:", OPCIONES_TRANSPORTISTA, index=0)
-    with c2:
-        req_trans = " *" if "P04" not in trans_tipo else ""
-        trans_nima = st.text_input(f"NIMA Transportista{req_trans}:", value="")
-        trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
-        trans_direccion = st.text_input("Dirección Transportista:", value="")
-    with c3:
-        trans_conductor = st.text_input("Conductor:", value="")
-        trans_matricula = st.text_input("Matrícula y Vehículo:", value="")
-        trans_telefono = st.text_input("Teléfono Transportista:", value="")
-        trans_email = st.text_input("Email Transportista:", value="")
+req_des = " *" if "P04" not in des_tipo else ""
+with c2:
+    des_nima = st.text_input(f"NIMA Destino (10 dígitos){req_des}:", value="", max_chars=10, placeholder="Ej: 0123456789")
+    des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
+    des_direccion = st.text_input("Dirección Destino:", value="")
 
-    st.markdown("---")
+with c3:
+    des_cp = st.text_input("C.P. Destino (5 dígitos):", value="", max_chars=5, placeholder="Ej: 28001")
+    prov_auto_des = obtener_provincia_por_cp(des_cp)
+    des_muni = st.text_input("Municipio Destino:", value="")
+    des_prov = st.text_input("Provincia Destino:", value=prov_auto_des)
+    des_telefono = st.text_input("Teléfono Destino:", value="")
+    des_email = st.text_input("Email Destino:", value="")
 
-    # 7. ACEPTACIÓN DEL RESIDUO
-    st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        fecha_entrega = st.text_input("Fecha Entrega:", value="")
-        kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="")
-    with c2:
-        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value="")
-        aceptacion_estado = st.selectbox("Aceptación:", ["", "Sí", "No"], index=0)
-    with c3:
-        motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
+st.markdown("---")
 
-    btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
+# 5. INFORMACIÓN SOBRE EL RESIDUO
+st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
+c1, c2 = st.columns(2)
+with c1:
+    ler = st.text_input("Código LER:", value="")
+    desc_residuo = st.text_area("Descripción del residuo:", value="")
+    cantidad_kg = st.text_input("Cantidad (kg):", value="")
+with c2:
+    operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="")
+    operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="")
+    desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="")
 
-# --- PROCESAMIENTO Y VALIDACIÓN ---
+st.markdown("---")
+
+# 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA
+st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
+c1, c2, c3 = st.columns(3)
+with c1:
+    trans_nif = st.text_input("N.I.F./CIF Transportista:", value="")
+    trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
+    trans_tipo = st.selectbox("Tipo Transportista:", OPCIONES_TRANSPORTISTA, index=0)
+
+req_trans = " *" if "P04" not in trans_tipo else ""
+with c2:
+    trans_nima = st.text_input(f"NIMA Transportista (10 dígitos){req_trans}:", value="", max_chars=10, placeholder="Ej: 0123456789")
+    trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
+    trans_direccion = st.text_input("Dirección Transportista:", value="")
+
+with c3:
+    trans_conductor = st.text_input("Conductor:", value="")
+    trans_matricula = st.text_input("Matrícula y Vehículo:", value="")
+    trans_telefono = st.text_input("Teléfono Transportista:", value="")
+    trans_email = st.text_input("Email Transportista:", value="")
+
+st.markdown("---")
+
+# 7. ACEPTACIÓN DEL RESIDUO
+st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
+c1, c2, c3 = st.columns(3)
+with c1:
+    fecha_entrega = st.text_input("Fecha Entrega:", value="")
+    kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="")
+with c2:
+    fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value="")
+    aceptacion_estado = st.selectbox("Aceptación:", ["", "Sí", "No"], index=0)
+with c3:
+    motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
+
+st.markdown("---")
+btn_generar = st.button("🚀 Generar PDF Oficial y Registrar", type="primary")
+
+# --- PROCESAMIENTO Y VALIDACIONES RIGUROSAS ---
 if btn_generar:
     errores = []
 
     if not di_num:
         errores.append("El Número de Documento (DI) es obligatorio.")
 
-    # Validaciones condicionales: Obligatorio si NO contiene P04
+    # Validar Formatos de NIF / CIF / NIE
+    for campo, val in [("Operador", op_nif), ("Origen", ori_nif), ("Destino", des_nif), ("Transportista", trans_nif)]:
+        if val and not validar_nif_cif_nie(val):
+            errores.append(f"El NIF/CIF/NIE del {campo} ('{val}') no tiene un formato válido.")
+
+    # Validar Formatos de Código Postal
+    for campo, val in [("Operador", op_cp), ("Origen", ori_cp), ("Destino", des_cp)]:
+        if val and not validar_cp(val):
+            errores.append(f"El Código Postal del {campo} debe ser un número de 5 dígitos.")
+
+    # Validar Formatos de NIMA (deben ser 10 dígitos numéricos)
+    for campo, val in [("Operador", op_nima), ("Origen", ori_nima), ("Destino", des_nima), ("Transportista", trans_nima)]:
+        if val and not validar_nima(val):
+            errores.append(f"El NIMA del {campo} ('{val}') debe tener exactamente 10 dígitos numéricos.")
+
+    # Validaciones condicionales de obligatoriedad (si NO es P04)
     if "P04" not in op_tipo:
         if not op_nima.strip():
             errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
@@ -287,11 +323,10 @@ if btn_generar:
         for err in errores:
             st.error(f"⚠️ {err}")
     else:
-        # Generación del PDF y Excel
+        # Generación del QR, PDF y Excel
         base_limpia = URL_BASE_APP.strip().rstrip("/")
         enlace_qr = f"{base_limpia}?doc={di_num}"
 
-        # 1. Código QR
         qr = qrcode.QRCode(box_size=10, border=2)
         qr.add_data(enlace_qr)
         qr.make(fit=True)
@@ -299,7 +334,6 @@ if btn_generar:
         qr_path = "temp_qr.png"
         img_qr.save(qr_path)
 
-        # 2. Generar PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=10)
@@ -417,7 +451,7 @@ if btn_generar:
         pdf.output(pdf_out_filename)
         pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-        # Excel
+        # Registro en Excel
         columnas_excel = [
             "Nº DI", "Fecha Inicio Traslado", "Hora Inicio", "NIF Operador", "Razón Social Operador",
             "NIMA Operador", "Nº Inscripción Operador", "Tipo Operador", "Dirección Operador", "CP Operador",
@@ -470,19 +504,7 @@ if btn_generar:
         with col_b:
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
-                st.download_button(
-                    label="📄 Descargar PDF Oficial",
-                    data=pdf_bytes,
-                    file_name=pdf_out_filename,
-                    mime="application/pdf",
-                    key="btn_pdf_main"
-                )
+                st.download_button("📄 Descargar PDF Oficial", data=pdf_bytes, file_name=pdf_out_filename, mime="application/pdf", key="btn_pdf_main")
             with col_btn2:
                 with open(EXCEL_PATH, "rb") as f_excel:
-                    st.download_button(
-                        label="📊 Descargar Registro Excel",
-                        data=f_excel,
-                        file_name="registro_documentos.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="btn_excel_main"
-                    )
+                    st.download_button("📊 Descargar Registro Excel", data=f_excel, file_name="registro_documentos.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_excel_main")
