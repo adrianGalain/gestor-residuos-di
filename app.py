@@ -45,18 +45,20 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
 
 # --- OPCIONES DE DESPLEGABLES CON DESCRIPCIÓN COMPLETA ---
 OPCIONES_OPERADOR = [
-    "A02",
+    "A02 (Agente RNP)",
     "P03 (Productor > 1000 Tn RNP)",
     "P04 (Productor < 1000 Tn RNP)",
     "G04 (Gestor RNP)",
-    "G05 (Gestor Intermedio RNP)"
+    "G05 (Gestor Intermedio RNP)",
+    "P05 (Poseedor)"
 ]
 
 OPCIONES_ORIGEN = [
     "P03 (Productor > 1000 Tn RNP)",
     "P04 (Productor < 1000 Tn RNP)",
     "G04 (Gestor RNP)",
-    "G05 (Gestor Intermedio RNP)"
+    "G05 (Gestor Intermedio RNP)",
+    "P05 (Poseedor)"
 ]
 
 OPCIONES_DESTINO = [
@@ -65,9 +67,7 @@ OPCIONES_DESTINO = [
 ]
 
 OPCIONES_TRANSPORTISTA = [
-    "T02 (Transportista RNP)",
-    "T01",
-    "T03"
+    "T02 (Transportista RNP)"
 ]
 
 # --- BARRA LATERAL ---
