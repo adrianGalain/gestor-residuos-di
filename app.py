@@ -498,21 +498,3 @@ if btn_generar:
 
         ws.append(fila_datos)
         wb.save(excel_path)
-
-# Botones de descarga PDF y Excel
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            st.download_button(
-                label="📄 Descargar PDF del Documento",
-                data=pdf_bytes,
-                file_name=f"DI_{di_num}.pdf",
-                mime="application/pdf",
-            )
-        with col_btn2:
-            with open(excel_path, "rb") as f_excel:
-                st.download_button(
-                    label="📊 Descargar Registro Completo (Excel)",
-                    data=f_excel,
-                    file_name="registro_documentos.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
