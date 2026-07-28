@@ -10,23 +10,6 @@ import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# app.py
-from flask import Flask, jsonify  # o la librería/framework que estés usando
-from ler_data import CODIGOS_LER
-
-app = Flask(__name__)
-
-@app.route('/api/ler', methods=['GET'])
-def get_codigos_ler():
-    """Endpoint para volcar todos los códigos LER"""
-    return jsonify({
-        "total": len(CODIGOS_LER),
-        "data": CODIGOS_LER
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
 # Configuración inicial de Streamlit
 st.set_page_config(
     page_title="Documento de Identificación (DI) - Residuos",
@@ -54,53 +37,6 @@ def normalizar_ler(codigo: str) -> str:
     if not codigo:
         return ""
     return re.sub(r'\D', '', str(codigo))
-
-# --- BASE DE DATOS LER (SIRA) ---
-BASE_DATOS_LER = [
-    {"codigo": "01 01 01", "descripcion": "Residuos de la extracción de minerales metálicos"},
-    {"codigo": "01 01 02", "descripcion": "Residuos de la extracción de minerales no metálicos"},
-    {"codigo": "02 01 04", "descripcion": "Residuos de plásticos (excepto embalajes)"},
-    {"codigo": "03 01 05", "descripcion": "Serrín, virutas, recortes, madera, tableros de partículas distintos de 03 01 04"},
-    {"codigo": "08 03 17*", "descripcion": "Residuos de tóner de impresión que contienen sustancias peligrosas"},
-    {"codigo": "08 03 18", "descripcion": "Residuos de tóner de impresión distintos de los mencionados en el código 08 03 17"},
-    {"codigo": "12 01 01", "descripcion": "Limaduras y virutas de metales férreos"},
-    {"codigo": "12 01 03", "descripcion": "Limaduras y virutas de metales no férreos"},
-    {"codigo": "13 02 05*", "descripcion": "Aceites de motor, de transmisión y de guiado minerales no clorados"},
-    {"codigo": "15 01 01", "descripcion": "Envases de papel y cartón"},
-    {"codigo": "15 01 02", "descripcion": "Envases de plástico"},
-    {"codigo": "15 01 03", "descripcion": "Envases de madera"},
-    {"codigo": "15 01 04", "descripcion": "Envases metálicos"},
-    {"codigo": "15 01 05", "descripcion": "Envases compuestos"},
-    {"codigo": "15 01 06", "descripcion": "Envases mezclados"},
-    {"codigo": "15 01 07", "descripcion": "Envases de vidrio"},
-    {"codigo": "15 01 10*", "descripcion": "Envases que contienen restos de sustancias peligrosas o están contaminados por ellas"},
-    {"codigo": "16 01 03", "descripcion": "Neumáticos fuera de uso"},
-    {"codigo": "16 01 07*", "descripcion": "Filtros de aceite"},
-    {"codigo": "16 02 13*", "descripcion": "Equipos desechados que contienen clorofluorocarbonos, HCFC o HFC"},
-    {"codigo": "16 02 14", "descripcion": "Equipos desechados distintos de los mencionados en los códigos 16 02 09 a 16 02 13"},
-    {"codigo": "16 06 01*", "descripcion": "Baterías de plomo"},
-    {"codigo": "16 06 02*", "descripcion": "Acumuladores de Ni-Cd"},
-    {"codigo": "16 06 03*", "descripcion": "Pilas que contienen mercurio"},
-    {"codigo": "16 06 04", "descripcion": "Pilas alcalinas (excepto 16 06 03)"},
-    {"codigo": "16 06 05", "descripcion": "Otras pilas y acumuladores"},
-    {"codigo": "17 01 01", "descripcion": "Hormigón"},
-    {"codigo": "17 01 02", "descripcion": "Ladrillos"},
-    {"codigo": "17 01 07", "descripcion": "Mezclas de hormigón, ladrillos, tejas y materiales cerámicos (no peligrosas)"},
-    {"codigo": "17 02 01", "descripcion": "Madera (Construcción)"},
-    {"codigo": "17 02 03", "descripcion": "Plástico (Construcción)"},
-    {"codigo": "17 04 05", "descripcion": "Hierro y acero"},
-    {"codigo": "17 09 04", "descripcion": "Residuos mezclados de construcción y demolición distintos de 17 09 01, 17 09 02 y 17 09 03"},
-    {"codigo": "20 01 01", "descripcion": "Papel y cartón (Municipal)"},
-    {"codigo": "20 01 02", "descripcion": "Vidrio (Municipal)"},
-    {"codigo": "20 01 08", "descripcion": "Residuos biodegradables de cocinas y restaurantes"},
-    {"codigo": "20 01 33*", "descripcion": "Baterías y acumuladores especificados en los códigos 16 06 01, 16 06 02 o 16 06 03 (Municipal)"},
-    {"codigo": "20 01 39", "descripcion": "Plásticos (Municipal)"},
-    {"codigo": "20 03 01", "descripcion": "Mezcla de residuos municipales"}
-]
-
-# Mapa normalizado para LER
-DICCIONARIO_LER = {item["codigo"]: item["descripcion"] for item in BASE_DATOS_LER}
-MAPA_LER_CANONICO = {normalizar_ler(item["codigo"]): (item["codigo"], item["descripcion"]) for item in BASE_DATOS_LER}
 
 # --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS ---
 LISTA_PROVINCIAS = [
