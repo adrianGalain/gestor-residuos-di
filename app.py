@@ -16,17 +16,41 @@ st.set_page_config(
 )
 
 EXCEL_PATH = "registro_documentos.xlsx"
-
-# Zona horaria de España (Península / Málaga)
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 
 def obtener_ahora_espana():
-    """Obtiene la fecha y hora actual ajustada a la zona horaria de España."""
     return datetime.now(SPAIN_TZ)
 
-# ==========================================
-# BARRA LATERAL (Acceso constante al Excel)
-# ==========================================
+# Base de datos local / Registro de Transportistas habituales / SIRA
+# Se puede buscar por CIF o por Nombre
+TRANSPORTISTAS_SIRA = [
+    {
+        "nif": "B11223344",
+        "nombre": "Transportes Rápidos S.L.",
+        "nima": "112233445",
+        "inscripcion": "TRA-004-AND",
+        "tipo": "Transportista Profesional",
+        "direccion": "Av. Logística 8, Málaga",
+        "conductor": "Juan Pérez",
+        "matricula": "1234-XYZ / Camión",
+        "telefono": "600112233",
+        "email": "trans@rapidos.com"
+    },
+    {
+        "nif": "A98765432",
+        "nombre": "Logística Ecológica Andaluza S.A.",
+        "nima": "2900012345",
+        "inscripcion": "TRA-015-AND",
+        "tipo": "Gestor y Transportista",
+        "direccion": "Pol. Ind. Guadalhorce, Málaga",
+        "conductor": "Manuel Gómez",
+        "matricula": "5678-ABC / Furgón",
+        "telefono": "611223344",
+        "email": "contacto@logisticaeco.es"
+    }
+]
+
+# BARRA LATERAL
 with st.sidebar:
     st.header("📊 Gestión de Registros")
     st.write("Descarga la base de datos completa de documentos generados:")
@@ -42,28 +66,19 @@ with st.sidebar:
                 key="btn_excel_sidebar"
             )
     else:
-        st.info("ℹ️ Aún no hay registros guardados. Genera el primer documento para crear el Excel.")
+        st.info("ℹ️ Aún no hay registros guardados.")
 
-# ==========================================
-# FUNCIONES AUXILIARES
-# ==========================================
 def obtener_siguiente_correlativo() -> int:
-    """Consulta el Excel para determinar el siguiente número correlativo del día/registro."""
     if not os.path.exists(EXCEL_PATH):
         return 1
     try:
         wb = load_workbook(EXCEL_PATH)
         ws = wb.active
-        total_filas = ws.max_row - 1
-        return max(1, total_filas + 1)
+        return max(1, ws.max_row)
     except Exception:
         return 1
 
 def generar_numero_di(nima_operador: str, correlativo: int) -> str:
-    """Genera automáticamente el Nº DI con el criterio:
-    [NIMA 10 dígitos] + [Año 4 dígitos] + [Correlativo 3 dígitos]
-    Ejemplo: 12345678902026001
-    """
     ahora = obtener_ahora_espana()
     nima_limpio = nima_operador.strip() if nima_operador else "0"
     nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
@@ -71,19 +86,14 @@ def generar_numero_di(nima_operador: str, correlativo: int) -> str:
     correlativo_str = str(correlativo).zfill(3)
     return f"{nima_10}{anio}{correlativo_str}"
 
-
-# ==========================================
-# 1. MODO VISOR (Lectura al escanear el QR)
-# ==========================================
+# MODO VISOR
 if "doc" in st.query_params:
     doc_id = st.query_params["doc"]
     st.title(f"🔎 Verificación de Documento: {doc_id}")
-
     pdf_filename = f"DI_{doc_id.replace('/', '_')}.pdf"
 
     if os.path.exists(pdf_filename):
         st.success("✅ Documento original encontrado y verificado.")
-
         with open(pdf_filename, "rb") as f:
             pdf_bytes = f.read()
 
@@ -94,38 +104,69 @@ if "doc" in st.query_params:
             mime="application/pdf",
             key="btn_visor_pdf"
         )
-
         st.markdown("---")
-        st.subheader("📄 Vista previa del documento:")
-
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
-
+        st.markdown(f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>', unsafe_allow_html=True)
     else:
-        st.error("❌ El documento no se encuentra en el servidor. Verifica que haya sido generado correctamente.")
+        st.error("❌ El documento no se encuentra en el servidor.")
 
-    st.markdown("---")
     if st.button("⬅️ Volver a la aplicación principal"):
         st.query_params.clear()
         st.rerun()
-
     st.stop()
 
-
-# ==========================================
-# 2. MODO FORMULARIO (Creación del documento)
-# ==========================================
+# MODO FORMULARIO
 ahora_espana = obtener_ahora_espana()
 
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
-st.write("Rellena las secciones para generar el PDF oficial y volcar el registro completo en Excel.")
+st.write("Rellena las secciones para generar el PDF oficial y volcar el registro en Excel.")
 
-# Enlace base configurado con tu subdominio real
 url_base = st.text_input(
     "🌐 URL Base de la Aplicación:",
     value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app"
 )
+
+# SECCIÓN DE BÚSQUEDA RÁPIDA DE TRANSPORTISTA (POR CIF O NOMBRE)
+st.markdown("---")
+st.subheader("🔍 Buscador de Transportista SIRA (Búsqueda por CIF o Nombre)")
+col_busq1, col_busq2 = st.columns([3, 1])
+
+opciones_transportistas = ["-- Seleccionar o Buscar Transportista --"] + [
+    f"{t['nif']} - {t['nombre']} (NIMA: {t['nima']})" for t in TRANSPORTISTAS_SIRA
+]
+
+with col_busq1:
+    trans_seleccionado = st.selectbox(
+        "Introduce o selecciona el CIF / Nombre del transportista registrado:",
+        options=opciones_transportistas
+    )
+
+with col_busq2:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.link_button(
+        "🌐 Consultar en SIRA (Junta de Andalucía)",
+        "https://www.juntadeandalucia.es/temas/empresas/obligaciones/medio-ambiente/paginas/gestion-residuos.html"
+    )
+
+# Valores por defecto para el formulario de transportista
+datos_t = {
+    "nif": "B11223344",
+    "nombre": "Transportes Rápidos S.L.",
+    "nima": "112233445",
+    "inscripcion": "TRA-004",
+    "tipo": "Transportista Profesional",
+    "direccion": "Av. Logística 8",
+    "conductor": "Juan Pérez",
+    "matricula": "1234-XYZ / Camión",
+    "telefono": "600112233",
+    "email": "trans@rapidos.com"
+}
+
+if trans_seleccionado != "-- Seleccionar o Buscar Transportista --":
+    for t in TRANSPORTISTAS_SIRA:
+        if t['nif'] in trans_seleccionado:
+            datos_t = t
+            break
 
 with st.form("di_form_completo"):
     st.header("1. OPERADOR Y DATOS GENERALES")
@@ -145,7 +186,6 @@ with st.form("di_form_completo"):
         op_telefono = st.text_input("Teléfono Operador:", value="952000000")
         op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
 
-    # Autogeneración dinámica del Nº DI con el número correlativo
     siguiente_correlativo = obtener_siguiente_correlativo()
     di_sugerido = generar_numero_di(op_nima, siguiente_correlativo)
 
@@ -210,18 +250,18 @@ with st.form("di_form_completo"):
     st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
     c1, c2, c3 = st.columns(3)
     with c1:
-        trans_nif = st.text_input("N.I.F. Transportista:", value="B11223344")
-        trans_nombre = st.text_input("Razón Social Transportista:", value="Transportes Rápidos S.L.")
-        trans_nima = st.text_input("NIMA Transportista:", value="112233445")
+        trans_nif = st.text_input("N.I.F. Transportista:", value=datos_t["nif"])
+        trans_nombre = st.text_input("Razón Social Transportista:", value=datos_t["nombre"])
+        trans_nima = st.text_input("NIMA Transportista:", value=datos_t["nima"])
     with c2:
-        trans_inscripcion = st.text_input("Nº Inscripción Transportista:", value="TRA-004")
-        trans_tipo = st.text_input("Tipo Transportista:", value="Transportista Profesional")
-        trans_direccion = st.text_input("Dirección Transportista:", value="Av. Logística 8")
+        trans_inscripcion = st.text_input("Nº Inscripción Transportista:", value=datos_t["inscripcion"])
+        trans_tipo = st.text_input("Tipo Transportista:", value=datos_t["tipo"])
+        trans_direccion = st.text_input("Dirección Transportista:", value=datos_t["direccion"])
     with c3:
-        trans_conductor = st.text_input("Conductor:", value="Juan Pérez")
-        trans_matricula = st.text_input("Matrícula y Vehículo:", value="1234-XYZ / Camión")
-        trans_telefono = st.text_input("Teléfono Transportista:", value="600112233")
-        trans_email = st.text_input("Email Transportista:", value="trans@rapidos.com")
+        trans_conductor = st.text_input("Conductor:", value=datos_t["conductor"])
+        trans_matricula = st.text_input("Matrícula y Vehículo:", value=datos_t["matricula"])
+        trans_telefono = st.text_input("Teléfono Transportista:", value=datos_t["telefono"])
+        trans_email = st.text_input("Email Transportista:", value=datos_t["email"])
 
     st.markdown("---")
     st.header("6. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
@@ -238,9 +278,7 @@ with st.form("di_form_completo"):
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
 
 
-# ==========================================
-# PROCESAMIENTO TRAS PULSAR EL BOTÓN
-# ==========================================
+# PROCESAMIENTO
 if btn_generar:
     if not di_num:
         st.error("Por favor, introduce el Número de Documento (DI).")
@@ -248,7 +286,7 @@ if btn_generar:
         base_limpia = url_base.strip().rstrip("/")
         enlace_qr = f"{base_limpia}?doc={di_num}"
 
-        # 1. Generar código QR
+        # 1. Código QR
         qr = qrcode.QRCode(box_size=10, border=2)
         qr.add_data(enlace_qr)
         qr.make(fit=True)
@@ -256,7 +294,7 @@ if btn_generar:
         qr_path = "temp_qr.png"
         img_qr.save(qr_path)
 
-        # 2. Generar PDF
+        # 2. PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=10)
@@ -264,10 +302,8 @@ if btn_generar:
         def s(txt):
             return str(txt).encode("latin-1", "replace").decode("latin-1")
 
-        # Dibujar QR (esquina superior derecha)
         pdf.image(qr_path, x=150, y=10, w=50, h=50)
 
-        # Cabecera PDF
         pdf.set_font("Arial", "B", 10)
         pdf.cell(135, 6, s("DOCUMENTO DE IDENTIFICACIÓN DE RESIDUOS Y CARTA DE PORTE"), border=0, ln=True)
         pdf.ln(2)
@@ -373,14 +409,10 @@ if btn_generar:
             pdf.cell(190, 5, s(f"Motivo de rechazo: {motivo_rechazo}"), border=1, ln=True)
 
         pdf_out_filename = f"DI_{di_num.replace('/', '_')}.pdf"
-        
-        # Guardado en disco
         pdf.output(pdf_out_filename)
-        
-        # Obtención de bytes directos para descarga segura
         pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-        # 3. Guardar en Excel con TODOS los datos
+        # Excel
         columnas_excel = [
             "Nº DI", "Fecha Inicio Traslado", "Hora Inicio", "NIF Operador", "Razón Social Operador",
             "NIMA Operador", "Nº Inscripción Operador", "Tipo Operador", "Dirección Operador", "CP Operador",
