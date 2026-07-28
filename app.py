@@ -21,7 +21,7 @@ EXCEL_PATH = "registro_documentos.xlsx"
 SPAIN_TZ = pytz.timezone("Europe/Madrid")
 URL_BASE_APP = os.getenv("URL_BASE_APP", "https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
 
-# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP (EJEMPLOS DE REFERENCIA Y ESTRUCTURA) ---
+# --- BASE DE DATOS DE PROVINCIAS Y MUNICIPIOS/CP ---
 LISTA_PROVINCIAS = [
     "", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Barcelona",
     "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "A Coruña",
@@ -32,7 +32,7 @@ LISTA_PROVINCIAS = [
     "Zamora", "Zaragoza", "Ceuta", "Melilla"
 ]
 
-# Prefijos de Código Postal por Provincia para autocompletado y filtrado
+# Prefijos de Código Postal por Provincia
 PREFIJOS_CP = {
     "Álava": "01", "Albacete": "02", "Alicante": "03", "Almería": "04", "Ávila": "05",
     "Badajoz": "06", "Illes Balears": "07", "Barcelona": "08", "Burgos": "09", "Cáceres": "10",
@@ -46,7 +46,7 @@ PREFIJOS_CP = {
     "Bizkaia": "48", "Zamora": "49", "Zaragoza": "50", "Ceuta": "51", "Melilla": "52"
 }
 
-# Ejemplos de Municipios principales por Provincia (Puedes ampliar la lista según tus necesidades)
+# Municipios de referencia (puedes ampliar esta lista)
 MUNICIPIOS_POR_PROVINCIA = {
     "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
     "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
@@ -162,7 +162,7 @@ with col_d3:
 
 st.markdown("---")
 
-# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO
+# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO (Limpio, sin cuadro personalizado)
 def selector_ubicacion(prefix_key: str, label_titulo: str):
     col1, col2, col3 = st.columns(3)
     
@@ -174,7 +174,6 @@ def selector_ubicacion(prefix_key: str, label_titulo: str):
             key=f"{prefix_key}_prov"
         )
     
-    # Obtener lista de municipios filtrada por provincia
     muni_options = [""] + MUNICIPIOS_POR_PROVINCIA.get(prov_sel, []) if prov_sel else [""]
     
     with col2:
@@ -182,16 +181,9 @@ def selector_ubicacion(prefix_key: str, label_titulo: str):
             f"Municipio {label_titulo}:",
             options=muni_options,
             index=0,
-            key=f"{prefix_key}_muni",
-            help="Escribe para buscar el municipio de la provincia seleccionada"
+            key=f"{prefix_key}_muni"
         )
-        # Si no está en la lista prediseñada, permite escribir uno personalizado
-        if not muni_options or len(muni_options) == 1:
-            muni_custom = st.text_input(f"O escribe el Municipio {label_titulo}:", key=f"{prefix_key}_muni_custom")
-            if muni_custom:
-                muni_sel = muni_custom
 
-    # Cálculo o sugerencia del Código Postal según el prefijo de la provincia
     prefijo_cp = PREFIJOS_CP.get(prov_sel, "")
     cp_sugerido = f"{prefijo_cp}001" if prefijo_cp else ""
 
@@ -291,9 +283,9 @@ with c2:
 
 st.markdown("---")
 
-# 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA
+# 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA (Con Dirección completa, Provincia, Municipio y CP)
 st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1:
     trans_nif = st.text_input("N.I.F./CIF Transportista:", value="")
     trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
@@ -305,9 +297,13 @@ with c2:
     trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
     trans_direccion = st.text_input("Dirección Transportista:", value="")
 
+trans_prov, trans_muni, trans_cp = selector_ubicacion("trans", "Transportista")
+
+c3, c4 = st.columns(2)
 with c3:
     trans_conductor = st.text_input("Conductor:", value="")
     trans_matricula = st.text_input("Matrícula y Vehículo:", value="")
+with c4:
     trans_telefono = st.text_input("Teléfono Transportista:", value="")
     trans_email = st.text_input("Email Transportista:", value="")
 
@@ -328,7 +324,7 @@ with c3:
 st.markdown("---")
 btn_generar = st.button("🚀 Generar PDF Oficial y Registrar", type="primary")
 
-# --- PROCESAMIENTO Y VALIDACIONES RIGUROSAS ---
+# --- PROCESAMIENTO Y VALIDACIONES ---
 if btn_generar:
     errores = []
 
@@ -341,7 +337,7 @@ if btn_generar:
             errores.append(f"El NIF/CIF/NIE del {campo} ('{val}') no tiene un formato válido.")
 
     # Validar Formatos de Código Postal
-    for campo, val in [("Operador", op_cp), ("Origen", ori_cp), ("Destino", des_cp)]:
+    for campo, val in [("Operador", op_cp), ("Origen", ori_cp), ("Destino", des_cp), ("Transportista", trans_cp)]:
         if val and not validar_cp(val):
             errores.append(f"El Código Postal del {campo} debe ser un número de 5 dígitos.")
 
@@ -350,7 +346,7 @@ if btn_generar:
         if val and not validar_nima(val):
             errores.append(f"El NIMA del {campo} ('{val}') debe tener exactamente 10 dígitos numéricos.")
 
-    # Validaciones condicionales de obligatoriedad (si NO es P04)
+    # Validaciones condicionales (si NO es P04)
     if "P04" not in op_tipo:
         if not op_nima.strip():
             errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
@@ -487,9 +483,13 @@ if btn_generar:
         pdf.cell(80, 5, s(f"Nº inscripción: {trans_inscripcion}"), border=1)
         pdf.cell(60, 5, s(f"Tipo: {trans_tipo}"), border=1, ln=True)
         pdf.cell(130, 5, s(f"Dirección: {trans_direccion}"), border=1)
-        pdf.cell(60, 5, s(f"Conductor: {trans_conductor}"), border=1, ln=True)
-        pdf.cell(95, 5, s(f"Matrícula y vehículo: {trans_matricula}"), border=1)
-        pdf.cell(95, 5, s(f"Teléfono / Email: {trans_telefono} - {trans_email}"), border=1, ln=True)
+        pdf.cell(60, 5, s(f"C.P.: {trans_cp}"), border=1, ln=True)
+        pdf.cell(95, 5, s(f"Municipio: {trans_muni}"), border=1)
+        pdf.cell(95, 5, s(f"Provincia: {trans_prov}"), border=1, ln=True)
+        pdf.cell(95, 5, s(f"Conductor: {trans_conductor}"), border=1)
+        pdf.cell(95, 5, s(f"Matrícula: {trans_matricula}"), border=1, ln=True)
+        pdf.cell(95, 5, s(f"Teléfono: {trans_telefono}"), border=1)
+        pdf.cell(95, 5, s(f"Email: {trans_email}"), border=1, ln=True)
         pdf.ln(3)
 
         # Aceptación
@@ -519,9 +519,10 @@ if btn_generar:
             "Teléfono Destino", "Email Destino", "Código LER", "Descripción Residuo", "Cantidad (kg)",
             "Op. Tratamiento Destino", "Op. Tratamiento Desagregada", "Descripción Op. Tratamiento",
             "NIF Transportista", "Razón Social Transportista", "NIMA Transportista", "Nº Inscripción Transportista",
-            "Tipo Transportista", "Dirección Transportista", "Conductor", "Matrícula / Vehículo",
-            "Teléfono Transportista", "Email Transportista", "Fecha Entrega", "Kg Netos Recibidos",
-            "Fecha Aceptación/Rechazo", "Estado Aceptación", "Motivo Rechazo", "Enlace QR Verificación"
+            "Tipo Transportista", "Dirección Transportista", "CP Transportista", "Municipio Transportista", 
+            "Provincia Transportista", "Conductor", "Matrícula / Vehículo", "Teléfono Transportista", 
+            "Email Transportista", "Fecha Entrega", "Kg Netos Recibidos", "Fecha Aceptación/Rechazo", 
+            "Estado Aceptación", "Motivo Rechazo", "Enlace QR Verificación"
         ]
 
         fila_datos = [
@@ -535,9 +536,10 @@ if btn_generar:
             des_telefono, des_email, ler, desc_residuo, cantidad_kg,
             operacion_tratam, operacion_desagregada, desc_operacion,
             trans_nif, trans_nombre, trans_nima, trans_inscripcion,
-            trans_tipo, trans_direccion, trans_conductor, trans_matricula,
-            trans_telefono, trans_email, fecha_entrega, kg_recibidos,
-            fecha_aceptacion, aceptacion_estado, motivo_rechazo, enlace_qr
+            trans_tipo, trans_direccion, trans_cp, trans_muni,
+            trans_prov, trans_conductor, trans_matricula, trans_telefono, 
+            trans_email, fecha_entrega, kg_recibidos, fecha_aceptacion, 
+            aceptacion_estado, motivo_rechazo, enlace_qr
         ]
 
         if not os.path.exists(EXCEL_PATH):
