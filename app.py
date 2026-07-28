@@ -8,47 +8,12 @@ import pytz
 from fpdf import FPDF
 from openpyxl import Workbook, load_workbook
 
-# 1. PANTALLA DE LOGIN
-if not st.session_state["autenticado"]:
-    st.title("🔐 Acceso al Gestor de Residuos")
-    
-    with st.form("form_login"):
-        email = st.text_input("Correo electrónico:")
-        password = st.text_input("Contraseña:", type="password")
-        btn_login = st.form_submit_button("Iniciar Sesión")
-        
-        if btn_login:
-            if email in USUARIOS and USUARIOS[email]["password"] == password:
-                st.session_state["autenticado"] = True
-                st.session_state["usuario_actual"] = USUARIOS[email]
-                st.success("¡Bienvenido!")
-                st.rerun()
-            else:
-                st.error("Correo o contraseña incorrectos")
-    st.stop()  # Detiene la ejecución para que no vean el formulario sin loguearse
-
-# 2. CLIENTE LOGUEADO (ASIGNACIÓN DE SU CARPETA PRIVADA)
-cliente = st.session_state["usuario_actual"]
-USER_FOLDER = os.path.join("clientes_data", cliente["folder"])
-os.makedirs(USER_FOLDER, exist_ok=True)
-
-# El Excel de este cliente se guardará en su propia carpeta aislada
-EXCEL_PATH = os.path.join(USER_FOLDER, "registro_documentos.xlsx")
-
-# Barra lateral con opción de cerrar sesión
-with st.sidebar:
-    st.write(f"🏢 **Empresa:** {cliente['empresa']}")
-    if st.button("Cerrar Sesión"):
-        st.session_state["autenticado"] = False
-        st.session_state["usuario_actual"] = None
-        st.rerun()
-
-# Configuración inicial de la página
+# Configuración inicial de la página (optimizada para móviles)
 st.set_page_config(
-    page_title="Gestión DI Residuos",
+    page_title="Documento de Identificación (DI) - Residuos",
     page_icon="🚛",
     layout="wide",
-    initial_sidebar_state="collapsed" # En el móvil la barra lateral empieza recogida
+    initial_sidebar_state="collapsed"
 )
 
 EXCEL_PATH = "registro_documentos.xlsx"
@@ -222,7 +187,7 @@ with st.form("di_form_completo"):
 
     st.markdown("---")
 
-    # 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA (SIMPLIFICADO Y LIMPIO)
+    # 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA
     st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
     c1, c2, c3 = st.columns(3)
     with c1:
