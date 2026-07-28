@@ -98,7 +98,7 @@ st.write("Rellena las secciones para generar el PDF oficial y volcar el registro
 
 with st.form("di_form_completo"):
 
-    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA
+    # 1. IDENTIFICACIÓN DEL DOCUMENTO Y FECHA (AUTOMÁTICOS / MANTENIDOS)
     siguiente_correlativo = obtener_siguiente_correlativo()
     di_sugerido = generar_numero_di("123456789", siguiente_correlativo)
 
@@ -117,19 +117,19 @@ with st.form("di_form_completo"):
     st.header("2. OPERADOR DEL TRASLADO")
     c_op1, c_op2, c_op3 = st.columns(3)
     with c_op1:
-        op_nif = st.text_input("NIF Operador:", value="B12345678")
-        op_nombre = st.text_input("Razón Social / Nombre:", value="Empresa Operadora S.L.")
-        op_nima = st.text_input("NIMA Operador:", value="123456789")
+        op_nif = st.text_input("NIF Operador:", value="")
+        op_nombre = st.text_input("Razón Social / Nombre:", value="")
+        op_nima = st.text_input("NIMA Operador:", value="")
     with c_op2:
         op_inscripcion = st.text_input("Nº Inscripción:", value="")
         op_tipo = st.selectbox("Tipo Operador:", ["A02", "P03", "P04", "G04", "G05"])
-        op_direccion = st.text_input("Dirección:", value="Calle Industria 12")
+        op_direccion = st.text_input("Dirección:", value="")
     with c_op3:
-        op_cp = st.text_input("C.P.:", value="29000")
-        op_muni = st.text_input("Municipio:", value="Málaga")
-        op_prov = st.text_input("Provincia:", value="Málaga")
-        op_telefono = st.text_input("Teléfono Operador:", value="952000000")
-        op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
+        op_cp = st.text_input("C.P.:", value="")
+        op_muni = st.text_input("Municipio:", value="")
+        op_prov = st.text_input("Provincia:", value="")
+        op_telefono = st.text_input("Teléfono Operador:", value="")
+        op_email = st.text_input("Correo Electrónico Operador:", value="")
 
     st.markdown("---")
 
@@ -137,19 +137,19 @@ with st.form("di_form_completo"):
     st.header("3. ORIGEN DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
-        ori_nif = st.text_input("NIF Origen:", value="A98765432")
-        ori_nombre = st.text_input("Razón Social Origen:", value="Fábrica Origen S.A.")
-        ori_nima = st.text_input("NIMA Origen:", value="987654321")
+        ori_nif = st.text_input("NIF Origen:", value="")
+        ori_nombre = st.text_input("Razón Social Origen:", value="")
+        ori_nima = st.text_input("NIMA Origen:", value="")
     with c2:
         ori_inscripcion = st.text_input("Nº Inscripción Origen:", value="")
         ori_tipo = st.selectbox("Tipo Origen:", ["P03", "P04", "G04", "G05"])
-        ori_direccion = st.text_input("Dirección Origen:", value="Polígono Industrial Norte 5")
+        ori_direccion = st.text_input("Dirección Origen:", value="")
     with c3:
-        ori_cp = st.text_input("C.P. Origen:", value="29001")
-        ori_muni = st.text_input("Municipio Origen:", value="Málaga")
-        ori_prov = st.text_input("Provincia Origen:", value="Málaga")
-        ori_telefono = st.text_input("Teléfono Origen:", value="952111222")
-        ori_email = st.text_input("Email Origen:", value="origen@empresa.com")
+        ori_cp = st.text_input("C.P. Origen:", value="")
+        ori_muni = st.text_input("Municipio Origen:", value="")
+        ori_prov = st.text_input("Provincia Origen:", value="")
+        ori_telefono = st.text_input("Teléfono Origen:", value="")
+        ori_email = st.text_input("Email Origen:", value="")
 
     st.markdown("---")
 
@@ -157,19 +157,19 @@ with st.form("di_form_completo"):
     st.header("4. DESTINO DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
-        des_nif = st.text_input("NIF Destino:", value="B55544332")
-        des_nombre = st.text_input("Razón Social Destino:", value="Planta Reciclaje Destino S.L.")
-        des_nima = st.text_input("NIMA Destino:", value="555443322")
+        des_nif = st.text_input("NIF Destino:", value="")
+        des_nombre = st.text_input("Razón Social Destino:", value="")
+        des_nima = st.text_input("NIMA Destino:", value="")
     with c2:
         des_inscripcion = st.text_input("Nº Inscripción Destino:", value="")
         des_tipo = st.selectbox("Tipo Destino:", ["G04", "G05"])
-        des_direccion = st.text_input("Dirección Destino:", value="Carretera Nacional Km 5")
+        des_direccion = st.text_input("Dirección Destino:", value="")
     with c3:
-        des_cp = st.text_input("C.P. Destino:", value="29002")
-        des_muni = st.text_input("Municipio Destino:", value="Antequera")
-        des_prov = st.text_input("Provincia Destino:", value="Málaga")
-        des_telefono = st.text_input("Teléfono Destino:", value="952333444")
-        des_email = st.text_input("Email Destino:", value="destino@reciclaje.com")
+        des_cp = st.text_input("C.P. Destino:", value="")
+        des_muni = st.text_input("Municipio Destino:", value="")
+        des_prov = st.text_input("Provincia Destino:", value="")
+        des_telefono = st.text_input("Teléfono Destino:", value="")
+        des_email = st.text_input("Email Destino:", value="")
 
     st.markdown("---")
 
@@ -177,13 +177,13 @@ with st.form("di_form_completo"):
     st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
     c1, c2 = st.columns(2)
     with c1:
-        ler = st.text_input("Código LER:", value="17 09 04")
-        desc_residuo = st.text_area("Descripción del residuo:", value="Residuos mezclados de construcción y demolición")
-        cantidad_kg = st.text_input("Cantidad (kg):", value="2500")
+        ler = st.text_input("Código LER:", value="")
+        desc_residuo = st.text_area("Descripción del residuo:", value="")
+        cantidad_kg = st.text_input("Cantidad (kg):", value="")
     with c2:
-        operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="R13")
-        operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="R1301")
-        desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="Acumulación de residuos previa a valorización")
+        operacion_tratam = st.text_input("Operación Tratamiento Destino:", value="")
+        operacion_desagregada = st.text_input("Operación Destino Desagregada:", value="")
+        desc_operacion = st.text_input("Descripción Op. Tratamiento:", value="")
 
     st.markdown("---")
 
@@ -191,22 +191,22 @@ with st.form("di_form_completo"):
     st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
     c1, c2, c3 = st.columns(3)
     with c1:
-        trans_nif = st.text_input("N.I.F. Transportista:", value="B11223344")
-        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="Transportes Rápidos S.L.")
-        trans_nima = st.text_input("NIMA Transportista:", value="112233445")
+        trans_nif = st.text_input("N.I.F. Transportista:", value="")
+        trans_nombre = st.text_input("Razón Social / Nombre Transportista:", value="")
+        trans_nima = st.text_input("NIMA Transportista:", value="")
     with c2:
         trans_inscripcion = st.text_input("Nº Inscripción / Autorización:", value="")
         trans_tipo = st.selectbox("Tipo Transportista:", ["T02", "T01", "T03"], index=0)
-        trans_direccion = st.text_input("Dirección Transportista:", value="Av. Logística 8, Málaga")
+        trans_direccion = st.text_input("Dirección Transportista:", value="")
     with c3:
-        trans_conductor = st.text_input("Conductor:", value="Juan Pérez")
-        trans_matricula = st.text_input("Matrícula y Vehículo:", value="1234-XYZ / Camión")
-        trans_telefono = st.text_input("Teléfono Transportista:", value="600112233")
-        trans_email = st.text_input("Email Transportista:", value="trans@rapidos.com")
+        trans_conductor = st.text_input("Conductor:", value="")
+        trans_matricula = st.text_input("Matrícula y Vehículo:", value="")
+        trans_telefono = st.text_input("Teléfono Transportista:", value="")
+        trans_email = st.text_input("Email Transportista:", value="")
 
     st.markdown("---")
 
-    # 7. ACEPTACIÓN DEL RESIDUO (EN BLANCO POR DEFECTO)
+    # 7. ACEPTACIÓN DEL RESIDUO
     st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
     c1, c2, c3 = st.columns(3)
     with c1:
