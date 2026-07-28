@@ -46,7 +46,7 @@ PREFIJOS_CP = {
     "Bizkaia": "48", "Zamora": "49", "Zaragoza": "50", "Ceuta": "51", "Melilla": "52"
 }
 
-# Municipios de referencia (puedes ampliar esta lista)
+# Municipios de referencia
 MUNICIPIOS_POR_PROVINCIA = {
     "Granada": ["Granada", "Motril", "Almuñécar", "Armilla", "Baza", "Iznalloz", "Loja", "Maracena"],
     "Málaga": ["Málaga", "Marbella", "Mijas", "Fuengirola", "Vélez-Málaga", "Estepona", "Torremolinos", "Antequera"],
@@ -162,7 +162,7 @@ with col_d3:
 
 st.markdown("---")
 
-# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO (Limpio, sin cuadro personalizado)
+# HELPER PARA COMPONENTE DE DIRECCIÓN INTERACTIVO
 def selector_ubicacion(prefix_key: str, label_titulo: str):
     col1, col2, col3 = st.columns(3)
     
@@ -208,7 +208,7 @@ with c_op1:
 req_op = " *" if "P04" not in op_tipo else ""
 with c_op2:
     op_nima = st.text_input(f"NIMA Operador (10 dígitos){req_op}:", value="", max_chars=10, placeholder="Ej: 0123456789")
-    op_inscripcion = st.text_input(f"Nº Inscripción{req_op}:", value="")
+    op_inscripcion = st.text_input("Nº Inscripción (Opcional):", value="")
     op_direccion = st.text_input("Dirección Operador:", value="")
 
 op_prov, op_muni, op_cp = selector_ubicacion("op", "Operador")
@@ -232,7 +232,7 @@ with c1:
 req_ori = " *" if "P04" not in ori_tipo else ""
 with c2:
     ori_nima = st.text_input(f"NIMA Origen (10 dígitos){req_ori}:", value="", max_chars=10, placeholder="Ej: 0123456789")
-    ori_inscripcion = st.text_input(f"Nº Inscripción Origen{req_ori}:", value="")
+    ori_inscripcion = st.text_input("Nº Inscripción Origen (Opcional):", value="")
     ori_direccion = st.text_input("Dirección Origen:", value="")
 
 ori_prov, ori_muni, ori_cp = selector_ubicacion("ori", "Origen")
@@ -256,7 +256,7 @@ with c1:
 req_des = " *" if "P04" not in des_tipo else ""
 with c2:
     des_nima = st.text_input(f"NIMA Destino (10 dígitos){req_des}:", value="", max_chars=10, placeholder="Ej: 0123456789")
-    des_inscripcion = st.text_input(f"Nº Inscripción Destino{req_des}:", value="")
+    des_inscripcion = st.text_input("Nº Inscripción Destino (Opcional):", value="")
     des_direccion = st.text_input("Dirección Destino:", value="")
 
 des_prov, des_muni, des_cp = selector_ubicacion("des", "Destino")
@@ -283,7 +283,7 @@ with c2:
 
 st.markdown("---")
 
-# 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA (Con Dirección completa, Provincia, Municipio y CP)
+# 6. INFORMACIÓN RELATIVA AL TRANSPORTISTA
 st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
 c1, c2 = st.columns(2)
 with c1:
@@ -294,7 +294,7 @@ with c1:
 req_trans = " *" if "P04" not in trans_tipo else ""
 with c2:
     trans_nima = st.text_input(f"NIMA Transportista (10 dígitos){req_trans}:", value="", max_chars=10, placeholder="Ej: 0123456789")
-    trans_inscripcion = st.text_input(f"Nº Inscripción / Autorización{req_trans}:", value="")
+    trans_inscripcion = st.text_input("Nº Inscripción / Autorización (Opcional):", value="")
     trans_direccion = st.text_input("Dirección Transportista:", value="")
 
 trans_prov, trans_muni, trans_cp = selector_ubicacion("trans", "Transportista")
@@ -346,30 +346,18 @@ if btn_generar:
         if val and not validar_nima(val):
             errores.append(f"El NIMA del {campo} ('{val}') debe tener exactamente 10 dígitos numéricos.")
 
-    # Validaciones condicionales (si NO es P04)
-    if "P04" not in op_tipo:
-        if not op_nima.strip():
-            errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
-        if not op_inscripcion.strip():
-            errores.append("El Nº de Inscripción del Operador es obligatorio para el tipo seleccionado.")
+    # Validaciones de obligación del NIMA únicamente (si NO es P04)
+    if "P04" not in op_tipo and not op_nima.strip():
+        errores.append("El NIMA del Operador es obligatorio para el tipo seleccionado.")
 
-    if "P04" not in ori_tipo:
-        if not ori_nima.strip():
-            errores.append("El NIMA de Origen es obligatorio para el tipo seleccionado.")
-        if not ori_inscripcion.strip():
-            errores.append("El Nº de Inscripción de Origen es obligatorio para el tipo seleccionado.")
+    if "P04" not in ori_tipo and not ori_nima.strip():
+        errores.append("El NIMA de Origen es obligatorio para el tipo seleccionado.")
 
-    if "P04" not in des_tipo:
-        if not des_nima.strip():
-            errores.append("El NIMA de Destino es obligatorio para el tipo seleccionado.")
-        if not des_inscripcion.strip():
-            errores.append("El Nº de Inscripción de Destino es obligatorio para el tipo seleccionado.")
+    if "P04" not in des_tipo and not des_nima.strip():
+        errores.append("El NIMA de Destino es obligatorio para el tipo seleccionado.")
 
-    if "P04" not in trans_tipo:
-        if not trans_nima.strip():
-            errores.append("El NIMA del Transportista es obligatorio para el tipo seleccionado.")
-        if not trans_inscripcion.strip():
-            errores.append("El Nº de Inscripción del Transportista es obligatorio para el tipo seleccionado.")
+    if "P04" not in trans_tipo and not trans_nima.strip():
+        errores.append("El NIMA del Transportista es obligatorio para el tipo seleccionado.")
 
     if errores:
         for err in errores:
