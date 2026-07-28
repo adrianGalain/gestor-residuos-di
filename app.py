@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 import os
 import qrcode
 import streamlit as st
@@ -11,6 +12,31 @@ st.set_page_config(
     page_icon="🚛",
     layout="wide",
 )
+
+# ==========================================
+# FUNCIONES AUXILIARES
+# ==========================================
+def generar_numero_di(nima_operador: str) -> str:
+    """Genera automáticamente el Nº DI con el criterio:
+    [NIMA 10 dígitos] + [Año 4 dígitos] + [Contador 7 dígitos (MMDDHHM)]
+    
+    Ejemplo para NIMA '123456789' el 28 de Julio a las 08:05:
+    -> 0123456789 (NIMA 10d) + 2026 (Año 4d) + 0728085 (MMDDHH + 1er dígito minuto)
+    """
+    ahora = datetime.now()
+    
+    # 1. NIMA a 10 dígitos (relleno con ceros a la izquierda si tiene menos)
+    nima_limpio = nima_operador.strip() if nima_operador else "0"
+    nima_10 = nima_limpio[:10] if len(nima_limpio) >= 10 else nima_limpio.zfill(10)
+    
+    # 2. Año (4 dígitos)
+    anio = ahora.strftime("%Y")
+    
+    # 3. Contador 7 dígitos: Mes(2) + Día(2) + Hora(2) + 1er dígito del Minuto(1)
+    contador_7 = ahora.strftime("%m%d%H") + ahora.strftime("%M")[0]
+    
+    return f"{nima_10}{anio}{contador_7}"
+
 
 # ==========================================
 # 1. MODO VISOR (Lectura al escanear el QR)
@@ -27,7 +53,6 @@ if "doc" in st.query_params:
         with open(pdf_filename, "rb") as f:
             pdf_bytes = f.read()
 
-        # Botón para descargar
         st.download_button(
             label="📥 Descargar Documento PDF Oficial",
             data=pdf_bytes,
@@ -38,10 +63,9 @@ if "doc" in st.query_params:
         st.markdown("---")
         st.subheader("📄 Vista previa del documento:")
 
-        # Convertir PDF a base64 para renderizarlo directamente en pantalla
+        # Visor incrustado para ver el PDF en pantalla desde el móvil
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
-
         st.markdown(pdf_display, unsafe_allow_html=True)
 
     else:
@@ -54,50 +78,57 @@ if "doc" in st.query_params:
         st.query_params.clear()
         st.rerun()
 
-    # Detener la ejecución para no mostrar el formulario de creación al escanear
     st.stop()
 
 
 # ==========================================
-# 📝 MODO FORMULARIO (Uso normal)
+# 2. MODO FORMULARIO (Creación del documento)
 # ==========================================
 st.title("🚛 Documento de Identificación de Residuos (DI) y Carta de Porte")
-st.write("Rellena las secciones del formulario para generar el PDF y volcar el registro en Excel.")
+st.write(
+    "Rellena las secciones para generar el PDF oficial y volcar el registro en Excel."
+)
+
+# Configuración básica de URL
+st.info("💡 **Configuración del QR**: Introduce el enlace público de tu app sin barra al final.")
+url_base = st.text_input("🌐 URL Base de la Aplicación:", value="https://tu-app.streamlit.app")
 
 with st.form("di_form_completo"):
-    st.header("1. DATOS GENERALES DEL TRASLADO")
-    st.info("💡 **Configuración del QR**: Introduce la URL donde tienes alojada esta app. Si estás probando en tu ordenador, deja localhost.")
-    
-    url_base = st.text_input("🌐 URL Base de la Aplicación:", value="https://gestor-residuos-di-zv7k5cappd8wle3kzxlxskd.streamlit.app")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        di_num = st.text_input("Documento de Identificación nº:", value="DI-2026-0001")
-    with col2:
-        fecha_inicio = st.text_input("Fecha inicio de traslado:", value="27/07/2026")
-    with col3:
-        hora_inicio = st.text_input("Hora:", value="10:00")
-
-    st.markdown("---")
-    st.header("2. OPERADOR DEL TRASLADO")
-    c1, c2, c3 = st.columns(3)
-    with c1:
+    st.header("1. OPERADOR Y DATOS GENERALES")
+    c_op1, c_op2, c_op3 = st.columns(3)
+    with c_op1:
+        op_nima = st.text_input("NIMA Operador:", value="123456789")
         op_nif = st.text_input("NIF Operador:", value="B12345678")
         op_nombre = st.text_input("Razón Social / Nombre:", value="Empresa Operadora S.L.")
-        op_nima = st.text_input("NIMA Operador:", value="123456789")
-    with c2:
+    with c_op2:
         op_inscripcion = st.text_input("Nº Inscripción:", value="INS-001")
         op_tipo = st.text_input("Tipo Operador:", value="Gestor")
         op_direccion = st.text_input("Dirección:", value="Calle Industria 12")
-    with c3:
+    with c_op3:
         op_cp = st.text_input("C.P.:", value="29000")
         op_muni = st.text_input("Municipio:", value="Málaga")
         op_prov = st.text_input("Provincia:", value="Málaga")
         op_telefono = st.text_input("Teléfono Operador:", value="952000000")
         op_email = st.text_input("Correo Electrónico Operador:", value="info@operador.com")
 
+    # Calculamos el Nº de DI automáticamente según el NIMA introducido
+    di_sugerido = generar_numero_di(op_nima)
+
     st.markdown("---")
-    st.header("3. ORIGEN DEL TRASLADO")
+    col_d1, col_d2, col_d3 = st.columns(3)
+    with col_d1:
+        di_num = st.text_input(
+            "🆔 Nº Documento de Identificación (Autogenerado):",
+            value=di_sugerido,
+            help="Formato: NIMA (10d) + Año (4d) + Fecha/Hora (7d)",
+        )
+    with col_d2:
+        fecha_inicio = st.text_input("Fecha inicio traslado:", value=datetime.now().strftime("%d/%m/%Y"))
+    with col_d3:
+        hora_inicio = st.text_input("Hora:", value=datetime.now().strftime("%H:%M"))
+
+    st.markdown("---")
+    st.header("2. ORIGEN DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
         ori_nif = st.text_input("NIF Origen:", value="A98765432")
@@ -115,7 +146,7 @@ with st.form("di_form_completo"):
         ori_email = st.text_input("Email Origen:", value="origen@empresa.com")
 
     st.markdown("---")
-    st.header("4. DESTINO DEL TRASLADO")
+    st.header("3. DESTINO DEL TRASLADO")
     c1, c2, c3 = st.columns(3)
     with c1:
         des_nif = st.text_input("NIF Destino:", value="B55544332")
@@ -133,7 +164,7 @@ with st.form("di_form_completo"):
         des_email = st.text_input("Email Destino:", value="destino@reciclaje.com")
 
     st.markdown("---")
-    st.header("5. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
+    st.header("4. INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA")
     c1, c2 = st.columns(2)
     with c1:
         ler = st.text_input("Código LER:", value="17 09 04")
@@ -145,7 +176,7 @@ with st.form("di_form_completo"):
         desc_operacion = st.text_input("Descripción Operación Tratamiento:", value="Acumulación de residuos previa a valorización")
 
     st.markdown("---")
-    st.header("6. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
+    st.header("5. INFORMACIÓN RELATIVA AL TRANSPORTISTA")
     c1, c2, c3 = st.columns(3)
     with c1:
         trans_nif = st.text_input("N.I.F. Transportista:", value="B11223344")
@@ -162,30 +193,31 @@ with st.form("di_form_completo"):
         trans_email = st.text_input("Email Transportista:", value="trans@rapidos.com")
 
     st.markdown("---")
-    st.header("7. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
+    st.header("6. INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO")
     c1, c2, c3 = st.columns(3)
     with c1:
-        fecha_entrega = st.text_input("Fecha Entrega:", value="27/07/2026")
+        fecha_entrega = st.text_input("Fecha Entrega:", value=datetime.now().strftime("%d/%m/%Y"))
         kg_recibidos = st.text_input("Kg. Netos Recibidos:", value="2500")
     with c2:
-        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value="27/07/2026")
+        fecha_aceptacion = st.text_input("Fecha Aceptación/Rechazo:", value=datetime.now().strftime("%d/%m/%Y"))
         aceptacion_estado = st.selectbox("Aceptación:", ["Sí", "No"])
     with c3:
         motivo_rechazo = st.text_input("Motivo de rechazo (si aplica):", value="")
 
     btn_generar = st.form_submit_button("🚀 Generar PDF Oficial y Registrar")
 
-# --- PROCESAMIENTO ---
+
+# ==========================================
+# PROCESAMIENTO
+# ==========================================
 if btn_generar:
     if not di_num:
-        st.error("Por favor, introduce el Nº de DI.")
+        st.error("Por favor, introduce el Número de Documento (DI).")
     else:
-        # Generamos el enlace dinámico para el QR
-        # Quitamos la barra final de url_base si la tiene para evitar duplicados
-        base_limpia = url_base.rstrip('/')
-        enlace_qr = f"{base_limpia}/?doc={di_num}"
+        base_limpia = url_base.strip().rstrip("/")
+        enlace_qr = f"{base_limpia}?doc={di_num}"
 
-        # 1. GENERAR CÓDIGO QR
+        # 1. Generar código QR
         qr = qrcode.QRCode(box_size=10, border=2)
         qr.add_data(enlace_qr)
         qr.make(fit=True)
@@ -193,33 +225,33 @@ if btn_generar:
         qr_path = "temp_qr.png"
         img_qr.save(qr_path)
 
-        # 2. CREACIÓN DEL PDF CON QR AISLADO
+        # 2. Generar PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=10)
 
         def s(txt):
-            return str(txt).encode('latin-1', 'replace').decode('latin-1')
+            return str(txt).encode("latin-1", "replace").decode("latin-1")
 
-        # DIBUJAR QR EN ZONA INDEPENDIENTE
+        # Dibujar QR (esquina superior derecha)
         pdf.image(qr_path, x=150, y=10, w=50, h=50)
 
-        # CABECERA Y DATOS GENERALES
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(135, 6, s('DOCUMENTO DE IDENTIFICACIÓN DE RESIDUOS Y CARTA DE PORTE'), border=0, ln=True)
+        # Cabecera
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(135, 6, s("DOCUMENTO DE IDENTIFICACIÓN DE RESIDUOS Y CARTA DE PORTE"), border=0, ln=True)
         pdf.ln(2)
-        pdf.set_font("Arial", '', 8)
+        pdf.set_font("Arial", "", 8)
         pdf.cell(135, 6, s(f"Documento de Identificación nº: {di_num}"), border=1, ln=True)
         pdf.cell(67, 6, s(f"Fecha inicio traslado: {fecha_inicio}"), border=1)
         pdf.cell(68, 6, s(f"Hora: {hora_inicio}"), border=1, ln=True)
-        
+
         pdf.set_y(63)
 
-        # SECCIÓN 1: OPERADOR DEL TRASLADO
-        pdf.set_font("Arial", 'B', 8)
+        # Operador
+        pdf.set_font("Arial", "B", 8)
         pdf.set_fill_color(220, 220, 220)
         pdf.cell(190, 5, s("OPERADOR DEL TRASLADO"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(50, 5, s(f"NIF: {op_nif}"), border=1)
         pdf.cell(140, 5, s(f"Razón social/Nombre: {op_nombre}"), border=1, ln=True)
         pdf.cell(50, 5, s(f"NIMA: {op_nima}"), border=1)
@@ -233,12 +265,12 @@ if btn_generar:
         pdf.cell(95, 5, s(f"Correo electrónico: {op_email}"), border=1, ln=True)
         pdf.ln(3)
 
-        # SECCIÓN 2: ORIGEN DEL TRASLADO
-        pdf.set_font("Arial", 'B', 8)
+        # Origen
+        pdf.set_font("Arial", "B", 8)
         pdf.cell(190, 5, s("ORIGEN DEL TRASLADO"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", 'I', 7.5)
+        pdf.set_font("Arial", "I", 7.5)
         pdf.cell(190, 4, s("Información de la instalación origen del traslado:"), border="LR", ln=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(50, 5, s(f"NIF: {ori_nif}"), border=1)
         pdf.cell(140, 5, s(f"Razón social/Nombre: {ori_nombre}"), border=1, ln=True)
         pdf.cell(50, 5, s(f"NIMA: {ori_nima}"), border=1)
@@ -252,12 +284,12 @@ if btn_generar:
         pdf.cell(95, 5, s(f"Correo electrónico: {ori_email}"), border=1, ln=True)
         pdf.ln(3)
 
-        # SECCIÓN 3: DESTINO DEL TRASLADO
-        pdf.set_font("Arial", 'B', 8)
+        # Destino
+        pdf.set_font("Arial", "B", 8)
         pdf.cell(190, 5, s("DESTINO DEL TRASLADO"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", 'I', 7.5)
+        pdf.set_font("Arial", "I", 7.5)
         pdf.cell(190, 4, s("Información de la instalación de destino:"), border="LR", ln=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(50, 5, s(f"NIF: {des_nif}"), border=1)
         pdf.cell(140, 5, s(f"Razón social/Nombre: {des_nombre}"), border=1, ln=True)
         pdf.cell(50, 5, s(f"NIMA: {des_nima}"), border=1)
@@ -271,10 +303,10 @@ if btn_generar:
         pdf.cell(95, 5, s(f"Correo electrónico: {des_email}"), border=1, ln=True)
         pdf.ln(3)
 
-        # SECCIÓN 4: RESIDUO
-        pdf.set_font("Arial", 'B', 8)
+        # Residuo
+        pdf.set_font("Arial", "B", 8)
         pdf.cell(190, 5, s("INFORMACIÓN SOBRE EL RESIDUO QUE SE TRASLADA"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(50, 5, s(f"Código LER: {ler}"), border=1)
         pdf.cell(140, 5, s(f"Descripción: {desc_residuo}"), border=1, ln=True)
         pdf.cell(95, 5, s(f"Op. Tratamiento Destino: {operacion_tratam}"), border=1)
@@ -283,10 +315,10 @@ if btn_generar:
         pdf.cell(60, 5, s(f"Cantidad (kg): {cantidad_kg}"), border=1, ln=True)
         pdf.ln(3)
 
-        # SECCIÓN 5: TRANSPORTISTA
-        pdf.set_font("Arial", 'B', 8)
+        # Transportista
+        pdf.set_font("Arial", "B", 8)
         pdf.cell(190, 5, s("INFORMACIÓN RELATIVA AL TRANSPORTISTA"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(50, 5, s(f"N.I.F.: {trans_nif}"), border=1)
         pdf.cell(140, 5, s(f"Razón social/Nombre: {trans_nombre}"), border=1, ln=True)
         pdf.cell(50, 5, s(f"NIMA: {trans_nima}"), border=1)
@@ -298,10 +330,10 @@ if btn_generar:
         pdf.cell(95, 5, s(f"Teléfono / Email: {trans_telefono} - {trans_email}"), border=1, ln=True)
         pdf.ln(3)
 
-        # SECCIÓN 6: ACEPTACIÓN DEL RESIDUO
-        pdf.set_font("Arial", 'B', 8)
+        # Aceptación
+        pdf.set_font("Arial", "B", 8)
         pdf.cell(190, 5, s("INFORMACIÓN SOBRE LA ACEPTACIÓN DEL RESIDUO"), border=1, ln=True, fill=True)
-        pdf.set_font("Arial", '', 7.5)
+        pdf.set_font("Arial", "", 7.5)
         pdf.cell(95, 5, s(f"Fecha entrega: {fecha_entrega}"), border=1)
         pdf.cell(95, 5, s(f"Kg. netos recibidos: {kg_recibidos}"), border=1, ln=True)
         pdf.cell(95, 5, s(f"Fecha aceptación/rechazo: {fecha_aceptacion}"), border=1)
@@ -315,7 +347,7 @@ if btn_generar:
         with open(pdf_out_path, "rb") as f:
             pdf_bytes = f.read()
 
-        # 3. REGISTRO EN EXCEL
+        # 3. Guardar en Excel
         excel_path = "registro_documentos.xlsx"
         if not os.path.exists(excel_path):
             wb = Workbook()
@@ -323,7 +355,7 @@ if btn_generar:
             ws.title = "Registros DI"
             ws.append([
                 "Nº DI", "Fecha", "Hora", "NIF Operador", "Nombre Operador", "NIMA Operador",
-                "NIF Origen", "Origen", "NIF Destino", "Destino", "Código LER", 
+                "NIF Origen", "Origen", "NIF Destino", "Destino", "Código LER",
                 "Residuo", "Kg", "Transportista", "Matrícula", "Aceptado", "Enlace QR"
             ])
         else:
@@ -337,16 +369,16 @@ if btn_generar:
         ])
         wb.save(excel_path)
 
-        st.success("✅ ¡PDF generado! Ahora el QR abrirá la aplicación y mostrará el documento.")
-        
+        st.success(f"✅ ¡Documento autogenerado con el código: **{di_num}**!")
+
         col_a, col_b = st.columns([1, 3])
         with col_a:
-            st.image(qr_path, caption="Escanea para probar", width=150)
+            st.image(qr_path, caption="Código QR", width=150)
         with col_b:
             st.download_button(
                 label="📄 Descargar PDF Oficial",
                 data=pdf_bytes,
                 file_name=f"DI_{di_num}.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
             )
-            st.code(f"El QR apunta a: {enlace_qr}", language="text")
+            st.code(f"URL del QR: {enlace_qr}", language="text")
